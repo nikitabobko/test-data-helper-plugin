@@ -107,7 +107,7 @@ class TestDataEditor(
     }
 
     fun updatePreviewEditor() {
-        val viewMode = if (previewEditorState.baseFileIsChosen) {
+        val viewMode = if (true || previewEditorState.baseFileIsChosen) {
             EditorViewMode.OnlyBaseEditor
         } else {
             EditorViewMode.BaseAndAdditionalEditor
@@ -120,7 +120,7 @@ class TestDataEditor(
                 previewEditorState.currentPreview.file.allExtensions
             )
         baseEditor.component.isVisible = true
-        previewEditorState.currentPreview.component.isVisible = editorViewMode == EditorViewMode.BaseAndAdditionalEditor
+        previewEditorState.currentPreview.component.isVisible = false
     }
 
 
