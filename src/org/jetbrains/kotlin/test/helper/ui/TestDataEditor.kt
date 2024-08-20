@@ -113,7 +113,7 @@ class TestDataEditor(
                 previewEditorState.currentPreviewIndex.toString()
             )
         baseEditor.component.isVisible = true
-        previewEditorState.currentPreview.component.isVisible = editorViewMode == EditorViewMode.BaseAndAdditionalEditor
+        previewEditorState.currentPreview.component.isVisible = false
     }
 
 
