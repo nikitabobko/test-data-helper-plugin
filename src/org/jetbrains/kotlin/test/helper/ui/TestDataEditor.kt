@@ -118,7 +118,7 @@ class TestDataEditor(
                 previewEditorState.currentPreview.file.allExtensions
             )
         baseEditor.component.isVisible = true
-        previewEditorState.currentPreview.component.isVisible = editorViewMode == EditorViewMode.BaseAndAdditionalEditor
+        previewEditorState.currentPreview.component.isVisible = false
     }
 
 
