@@ -262,7 +262,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val (commandLine, title) = generateTestsCommandLine(project)
-                    runGradleCommandLine(e, commandLine, false, title)
+                    runGradleCommandLine(e, commandLine, false, useProjectBasePath = true, title)
                 }
             },
             object : AnAction("Run Selected && Apply Diffs"), DumbAware {
@@ -285,8 +285,8 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                             project = project,
                             systemId = GradleConstants.SYSTEM_ID,
                             executorId = DefaultRunExecutor.getRunExecutorInstance().id,
-                            settings = createGradleExternalSystemTaskExecutionSettings(project,
-                                commandLine
+                            settings = createGradleExternalSystemTaskExecutionSettings(
+                                project, commandLine, useProjectBasePath = true
                             )
                         )
                             .withActivateToolWindowBeforeRun(true)

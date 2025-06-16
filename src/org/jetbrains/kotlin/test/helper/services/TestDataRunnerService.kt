@@ -48,7 +48,7 @@ class TestDataRunnerService(
                 }
             }
 
-            runGradleCommandLine(e, commandLine, debug)
+            runGradleCommandLine(e, commandLine, debug, useProjectBasePath = false)
         }
     }
 
@@ -83,7 +83,7 @@ class TestDataRunnerService(
                             }
 
                             withContext(Dispatchers.EDT) {
-                                runGradleCommandLine(e, commandLine, debug, title = e.toFileNamesString()?.let { "$selected: $it" })
+                                runGradleCommandLine(e, commandLine, debug, title = e.toFileNamesString()?.let { "$selected: $it" }, useProjectBasePath = false)
                             }
                         }
 

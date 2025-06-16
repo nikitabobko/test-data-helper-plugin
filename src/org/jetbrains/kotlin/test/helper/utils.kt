@@ -121,10 +121,11 @@ fun runGradleCommandLine(
     e: AnActionEvent,
     fullCommandLine: String,
     debug: Boolean,
+    useProjectBasePath: Boolean,
     title: String? = e.toFileNamesString()
 ) {
     val project = e.project ?: return
-    val runSettings = createGradleRunAndConfigurationSettings(project, fullCommandLine, title) ?: return
+    val runSettings = createGradleRunAndConfigurationSettings(project, fullCommandLine, title, useProjectBasePath) ?: return
 
     ProgramRunnerUtil.executeConfiguration(
         runSettings,
@@ -140,12 +141,13 @@ fun runGradleCommandLine(
     }
 }
 
-fun createGradleRunAndConfigurationSettings(
+private fun createGradleRunAndConfigurationSettings(
     project: Project,
     fullCommandLine: String,
-    title: String?
+    title: String?,
+    useProjectBasePath: Boolean,
 ): RunnerAndConfigurationSettings? {
-    val settings = createGradleExternalSystemTaskExecutionSettings(project, fullCommandLine)
+    val settings = createGradleExternalSystemTaskExecutionSettings(project, fullCommandLine, useProjectBasePath)
     val runSettings = ExternalSystemUtil.createExternalSystemRunnerAndConfigurationSettings(
         settings,
         project,
@@ -160,13 +162,18 @@ fun createGradleRunAndConfigurationSettings(
 
 fun createGradleExternalSystemTaskExecutionSettings(
     project: Project,
-    fullCommandLine: String
+    fullCommandLine: String,
+    useProjectBasePath: Boolean,
 ): ExternalSystemTaskExecutionSettings {
     return ExternalSystemTaskExecutionSettings().apply {
-        val localSettings =
-            ExternalSystemApiUtil.getLocalSettings<GradleLocalSettings>(project, GradleConstants.SYSTEM_ID)
-        externalProjectPath =
-            localSettings.availableProjects.keys.firstOrNull()?.let { FileUtil.toCanonicalPath(it.path) }
+        externalProjectPath = if (useProjectBasePath) {
+            project.basePath
+        } else {
+            ExternalSystemApiUtil.getLocalSettings<GradleLocalSettings>(
+                project,
+                GradleConstants.SYSTEM_ID
+            ).availableProjects.keys.firstOrNull()?.let { FileUtil.toCanonicalPath(it.path) }
+        }
         taskNames = fullCommandLine.split(" ")
         externalSystemIdString = GradleConstants.SYSTEM_ID.id
     }
