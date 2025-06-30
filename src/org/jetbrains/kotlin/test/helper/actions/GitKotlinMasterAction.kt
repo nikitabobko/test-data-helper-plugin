@@ -16,7 +16,9 @@ abstract class GitKotlinMasterAction : GitSingleBranchAction() {
 
         private val KOTLIN_PUBLIC_MONOREPO_REMOTES = setOf(
             "git@github.com:JetBrains/kotlin.git",
-            "https://github.com/JetBrains/kotlin.git"
+            "github.com/JetBrains/kotlin.git",
+            "git@git.jetbrains.team/kt/kotlin.git",
+            "git.jetbrains.team/kt/kotlin.git",
         )
     }
 
@@ -47,5 +49,5 @@ abstract class GitKotlinMasterAction : GitSingleBranchAction() {
         remotes.any { it.isPublicKotlinMonorepo() }
 
     private fun GitRemote.isPublicKotlinMonorepo() =
-        this.urls.any { it in KOTLIN_PUBLIC_MONOREPO_REMOTES }
+        this.urls.any { it.removePrefix("ssh://").removePrefix("https://") in KOTLIN_PUBLIC_MONOREPO_REMOTES }
 }
