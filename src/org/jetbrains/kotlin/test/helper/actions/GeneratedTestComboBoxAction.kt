@@ -229,7 +229,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
 
     }
 
-    inner class RunAllTestsAction : AnAction(
+    inner class RunAllTestsAction : GradleOnlyAction(
         "Run All...",
         "Run all tests via gradle",
         AllIcons.RunConfigurations.Junit
@@ -271,12 +271,12 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     awaitTestRunAndApplyDiffs(e.project ?: return)
                 }
             },
-            object : AnAction("Run All && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Run All && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     runAllAndApplyDiff(e, delay = false)
                 }
             },
-            object : AnAction("Generate Tests, Run All && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Generate Tests, Run All && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val (commandLine, _) = generateTestsCommandLine(project)

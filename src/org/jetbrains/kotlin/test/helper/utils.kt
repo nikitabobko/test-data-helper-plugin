@@ -203,3 +203,8 @@ fun PsiClass.buildRunnerLabel(allTags: Map<String, Array<String>>): String {
         this.append(runnerName)
     }
 }
+
+fun Project.isGradleEnabled(): Boolean = ExternalSystemApiUtil
+    .getLocalSettings<GradleLocalSettings>(this, GradleConstants.SYSTEM_ID)
+    .availableProjects
+    .isNotEmpty()
