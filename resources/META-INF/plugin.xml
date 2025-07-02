@@ -43,7 +43,8 @@
         <group id="TestDataRunAllTestsSpecificGroup"
                text="Run Specific Tests"
                icon="AllIcons.RunConfigurations.Junit"
-               popup="true">
+               popup="true"
+               class="org.jetbrains.kotlin.test.helper.actions.RunSelectedFilesGroup">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
             <add-to-group group-id="ChangesViewPopupMenu" anchor="last"/>
             <add-to-group group-id="Vcs.Log.ChangesBrowser.Popup" anchor="last"/>
@@ -65,7 +66,8 @@
         <group id="TestDataRunAllTestsGroup"
                text="Run All Tests"
                icon="AllIcons.RunConfigurations.Junit"
-               popup="true">
+               popup="true"
+               class="org.jetbrains.kotlin.test.helper.actions.RunSelectedFilesGroup">
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
             <add-to-group group-id="ChangesViewPopupMenu" anchor="last"/>
             <add-to-group group-id="Vcs.Log.ChangesBrowser.Popup" anchor="last"/>
