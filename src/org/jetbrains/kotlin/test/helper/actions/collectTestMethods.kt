@@ -17,7 +17,7 @@ import java.io.File
 
 private val testNameReplacementRegex = "[.-]".toRegex()
 
-fun VirtualFile.collectTestMethodsIfTestData(project: Project): List<PsiNameIdentifierOwner> {
+fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstChild: Boolean = true): List<PsiNameIdentifierOwner> {
     val testDataType = getTestDataType(project) ?: return emptyList()
 
     val normalizedFile = if (isFile && testDataType == TestDataType.Directory) parent else this
@@ -29,6 +29,18 @@ fun VirtualFile.collectTestMethodsIfTestData(project: Project): List<PsiNameIden
 
     return if (testDataType == TestDataType.DirectoryOfFiles) {
         val classes = cache.getClassesByName(normalizedName, GlobalSearchScope.allScope(project))
+            .toList()
+            .ifEmpty {
+                if (fallbackToFirstChild && normalizedFile.isDirectory) {
+                    @Suppress("UnsafeVfsRecursion")
+                    normalizedFile.children.firstOrNull()
+                        ?.collectTestMethodsIfTestData(project, fallbackToFirstChild = false)
+                        ?.mapNotNull { it.parent as? PsiClass }
+                        ?.let { return@ifEmpty it }
+                }
+
+                emptyList()
+            }
         classes.filter { it ->
             val (testMetaData, testDataPath) = it.extractClassTestMetadata(project)
             buildPath(null, testMetaData, testDataPath, project) == truePathWithoutAllExtensions
