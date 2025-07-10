@@ -4,10 +4,6 @@ import com.intellij.codeInsight.navigation.PsiTargetNavigator
 import com.intellij.designer.actions.AbstractComboBoxAction
 import com.intellij.execution.Location
 import com.intellij.execution.PsiLocation
-import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsAdapter
-import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
-import com.intellij.execution.testframework.sm.runner.SMTestProxy
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -21,13 +17,9 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.externalSystem.task.TaskCallback
-import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
-import com.intellij.openapi.externalSystem.util.task.TaskExecutionSpec
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
@@ -37,23 +29,22 @@ import com.intellij.testIntegration.TestRunLineMarkerProvider
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.concurrency.AppExecutorUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
+import org.jetbrains.kotlin.test.helper.awaitTestRun
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
-import org.jetbrains.kotlin.test.helper.createGradleExternalSystemTaskExecutionSettings
+import org.jetbrains.kotlin.test.helper.generateTestsAndWait
+import org.jetbrains.kotlin.test.helper.generateTestsCommandLine
 import org.jetbrains.kotlin.test.helper.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 import org.jetbrains.kotlin.test.helper.ui.WidthAdjustingPanel
-import org.jetbrains.plugins.gradle.util.GradleConstants
-import java.nio.file.Paths
 import java.util.concurrent.Callable
 import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JPanel
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBoxAction<String>(), DumbAware {
     companion object {
@@ -260,7 +251,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             return ActionUpdateThread.BGT
         }
 
-        private val actions = arrayOf<AnAction>(
+        private val actions = arrayOf(
             object : AnAction("Reload Tests"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     state.updateTestsList()
@@ -269,7 +260,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             object : AnAction("Generate Tests"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
-                    val (commandLine, title) = generateTestsCommandLine(project)
+                    val (commandLine, title) = generateTestsCommandLine(project, listOf(baseEditor.file))
                     runGradleCommandLine(e, commandLine, false, useProjectBasePath = true, title)
                 }
             },
@@ -311,10 +302,11 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                             reportSequentialProgress { reporter ->
                                 reporter.nextStep(33)
                                 reporter.nextStep(66, "Generating Tests") {
-                                    generateTestsAndWait(project)
+                                    generateTestsAndWait(project, listOf(baseEditor.file))
                                 }
 
                                 reporter.nextStep(100, "Running All Tests") {
+                                    delay(100)
                                     service.doRunAllTestsAndApplyDiffs(e, project)
                                 }
                             }
@@ -322,6 +314,11 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     }
                 }
             },
+            object : GradleOnlyAction("Generate, Run, Apply Diffs && Commit") {
+                override fun actionPerformed(e: AnActionEvent) {
+                    ActionUtil.performActionDumbAwareWithCallbacks(CreateReproducerCommitAction(), e)
+                }
+            }
         )
 
         override fun getChildren(e: AnActionEvent?): Array<AnAction> {
@@ -338,63 +335,6 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
 
             withContext(Dispatchers.EDT) {
                 applyDiffs(arrayOf(testProxy))
-            }
-        }
-
-        private suspend fun awaitTestRun(project: Project): SMTestProxy.SMRootTestProxy {
-            return suspendCoroutine {
-                val connection = project.messageBus.connect(baseEditor)
-                connection
-                    .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
-                        override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
-                            connection.disconnect()
-                            it.resume(testsRoot)
-                        }
-                    })
-            }
-        }
-
-        private suspend fun generateTestsAndWait(project: Project) {
-            val (commandLine, _) = generateTestsCommandLine(project)
-
-            suspendCoroutine {
-                ExternalSystemUtil.runTask(
-                    TaskExecutionSpec.create(
-                        project = project,
-                        systemId = GradleConstants.SYSTEM_ID,
-                        executorId = DefaultRunExecutor.getRunExecutorInstance().id,
-                        settings = createGradleExternalSystemTaskExecutionSettings(
-                            project, commandLine, useProjectBasePath = true
-                        )
-                    )
-                        .withActivateToolWindowBeforeRun(true)
-                        .withCallback(object : TaskCallback {
-                            override fun onSuccess() {
-                                it.resume(Unit)
-                            }
-
-                            override fun onFailure() {
-                                it.resume(Unit)
-                            }
-                        }).build()
-                )
-            }
-        }
-
-        private fun generateTestsCommandLine(project: Project): Pair<String, String> {
-            fun isAncestor(basePath: String, vararg strings: String): Boolean {
-                val file = VfsUtil.findFile(Paths.get(basePath, *strings), false) ?: return false
-                return VfsUtil.isAncestor(file, baseEditor.file, false)
-            }
-
-            val basePath = project.basePath
-            return if (basePath != null &&
-                (isAncestor(basePath, "compiler", "testData", "diagnostics") ||
-                        isAncestor(basePath, "compiler", "fir", "analysis-tests", "testData"))
-            ) {
-                "generateFrontendApiTests compiler:tests-for-compiler-generator:generateTests" to "Generate Diagnostic Tests"
-            } else {
-                "generateTests" to "Generate Tests"
             }
         }
     }

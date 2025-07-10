@@ -5,15 +5,22 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
+import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsAdapter
+import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
+import com.intellij.execution.testframework.sm.runner.SMTestProxy
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
+import com.intellij.openapi.externalSystem.task.TaskCallback
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
+import com.intellij.openapi.externalSystem.util.task.TaskExecutionSpec
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiClass
+import kotlinx.coroutines.coroutineScope
 import org.jetbrains.plugins.gradle.settings.GradleLocalSettings
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.io.File
@@ -21,8 +28,11 @@ import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlin.io.path.Path
 import kotlin.io.path.pathString
 
@@ -208,3 +218,60 @@ fun Project.isGradleEnabled(): Boolean = ExternalSystemApiUtil
     .getLocalSettings<GradleLocalSettings>(this, GradleConstants.SYSTEM_ID)
     .availableProjects
     .isNotEmpty()
+
+suspend fun awaitTestRun(project: Project): SMTestProxy.SMRootTestProxy {
+    return coroutineScope {
+        suspendCoroutine {
+            val connection = project.messageBus.connect(this@coroutineScope)
+            connection
+                .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
+                    override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
+                        connection.disconnect()
+                        it.resume(testsRoot)
+                    }
+                })
+        }
+    }
+}
+
+suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
+    val (commandLine, _) = generateTestsCommandLine(project, files)
+    generateTestsAndWait(project, commandLine)
+}
+
+suspend fun generateTestsAndWait(project: Project, commandLine: String) {
+    suspendCoroutine {
+        ExternalSystemUtil.runTask(
+            TaskExecutionSpec.create(
+                project = project,
+                systemId = GradleConstants.SYSTEM_ID,
+                executorId = DefaultRunExecutor.getRunExecutorInstance().id,
+                settings = createGradleExternalSystemTaskExecutionSettings(
+                    project, commandLine, useProjectBasePath = true
+                )
+            )
+                .withActivateToolWindowBeforeRun(true)
+                .withCallback(object : TaskCallback {
+                    override fun onSuccess() = it.resume(Unit)
+                    override fun onFailure() = it.resume(Unit)
+                }).build()
+        )
+    }
+}
+
+fun generateTestsCommandLine(project: Project, files: List<VirtualFile>): Pair<String, String> {
+    fun isAncestor(basePath: String, vararg strings: String): Boolean {
+        val file = VfsUtil.findFile(Paths.get(basePath, *strings), false) ?: return false
+        return files.all{  VfsUtil.isAncestor(file, it, false) }
+    }
+
+    val basePath = project.basePath
+    return if (basePath != null &&
+        (isAncestor(basePath, "compiler", "testData", "diagnostics") ||
+                isAncestor(basePath, "compiler", "fir", "analysis-tests", "testData"))
+    ) {
+        "generateFrontendApiTests compiler:tests-for-compiler-generator:generateTests" to "Generate Diagnostic Tests"
+    } else {
+        "generateTests" to "Generate Tests"
+    }
+}

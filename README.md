@@ -53,6 +53,7 @@ In the top right, a toolbar (3) can be found that offers the following features:
 - Reloading test runners
 - Regenerating test runners (will run the `generateTests` Gradle task or an optimized set of tasks for diagnostic tests)
 - Running one or all test runners and applying diffs (see Apply Diffs), optionally after regenerating tests
+- Create a reproducer commit (see "Create Reproducer Commit")
 
 ### Run Tests from Various Menus
 
@@ -69,6 +70,25 @@ In the commit tool window, an action (2) is available to run all tests on all mo
 
 When tests fail with assertion errors related to files, the diffs can be applied using the context menu in the test
 tool window. It works on individual tests, groups of tests or all tests.
+
+### Create Reproducer Commit
+
+![Create Reproducer](pic/create-reproducer.png)
+
+This action will
+
+- prompt you for a ticket number
+- generate tests
+- rerun tests until they are green
+- apply diffs
+- commit changes with the commit message 
+
+> \[Tests] Reproduce #KT-XXX
+
+If tests fail without a diff or applying diffs leads to a conflict, it will ask you to resolve the problems before
+continuing.
+
+This action is also available in the three dots menu in the editor.
 
 ### Running Tests from Arbitrary Modules
 

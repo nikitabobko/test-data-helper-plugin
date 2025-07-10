@@ -86,6 +86,14 @@
                     text="Debug All Tests" description="Debug all tests related to selected files"
                     icon="AllIcons.Actions.StartDebugger">
             </action>
+            <action
+                    id="CreateReproducerCommit"
+                    class="org.jetbrains.kotlin.test.helper.actions.CreateReproducerCommitAction"
+                    text="Create Reproducer Commit"
+                    description="Generates tests, runs all tests, applies all diffs and creates a commit with the specified ticket number."
+                    icon="AllIcons.Actions.Commit"
+            >
+            </action>
         </group>
 
         <action id="RunAllChangesTests" class="org.jetbrains.kotlin.test.helper.actions.RunAllChangedTestsAction"

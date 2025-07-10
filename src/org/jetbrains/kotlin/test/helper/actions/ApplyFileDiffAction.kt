@@ -36,11 +36,17 @@ internal class ApplyFileDiffAction : DumbAwareAction() {
     }
 }
 
-fun applyDiffs(tests: Array<out AbstractTestProxy>) {
+enum class ApplyDiffResult {
+    SUCCESS, HAS_CONFLICT, NO_DIFFS
+}
+
+fun applyDiffs(tests: Array<out AbstractTestProxy>): ApplyDiffResult {
     val diffsByFile = tests
         .flatMap { it.collectChildrenRecursively(mutableListOf()) }
         .groupBy { it.filePath }
         .mapValues { it.value.distinctBy { diff -> diff.right } }
+
+    var result = if (diffsByFile.any { it.key != null }) ApplyDiffResult.SUCCESS else ApplyDiffResult.NO_DIFFS
 
     WriteAction.run<Throwable> {
         for ((filePath, diffs) in diffsByFile) {
@@ -59,7 +65,10 @@ fun applyDiffs(tests: Array<out AbstractTestProxy>) {
                         autoMerge(
                             left = StringUtilRt.convertLineSeparators(acc, lineSeparator),
                             base = StringUtilRt.convertLineSeparators(base, lineSeparator),
-                            right = StringUtilRt.convertLineSeparators(right.right, lineSeparator)
+                            right = StringUtilRt.convertLineSeparators(right.right, lineSeparator),
+                            onConflict = {
+                                result = ApplyDiffResult.HAS_CONFLICT
+                            }
                         )
                     }
             }
@@ -67,6 +76,8 @@ fun applyDiffs(tests: Array<out AbstractTestProxy>) {
             file.writeText(StringUtilRt.convertLineSeparators(result, lineSeparator))
         }
     }
+
+    return result
 }
 
 private fun AbstractTestProxy.collectChildrenRecursively(list: MutableList<DiffHyperlink>): List<DiffHyperlink> {
@@ -80,7 +91,7 @@ private fun AbstractTestProxy.collectChildrenRecursively(list: MutableList<DiffH
     return list
 }
 
-private fun autoMerge(left: String, base: String, right: String): String {
+private fun autoMerge(left: String, base: String, right: String, onConflict: () -> Unit): String {
     val leftLines = left.lines()
     val baseLines = base.lines()
     val rightLines = right.lines()
@@ -127,6 +138,7 @@ private fun autoMerge(left: String, base: String, right: String): String {
                 result += "======="
                 result += rightChunk
                 result += ">>>>>>> RIGHT"
+                onConflict()
             }
         }
 
