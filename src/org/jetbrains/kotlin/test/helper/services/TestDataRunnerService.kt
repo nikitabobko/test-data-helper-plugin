@@ -37,19 +37,23 @@ class TestDataRunnerService(
         scope.launch(Dispatchers.Default) {
             if (delay) delay(1.seconds)
 
-            val commandLine = withBackgroundProgress(project, title = "Running all tests") {
-                reportSequentialProgress { reporter ->
-                    reporter.indeterminateStep("Collecting tests")
+            doCollectAndRunAllTests(e, files, debug)
+        }
+    }
 
-                    smartReadAction(project) {
-                        val testDeclarations = filterAndCollectTestDeclarations(files)
-                        computeGradleCommandLine(testDeclarations)
-                    }
+    suspend fun doCollectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>, debug: Boolean) {
+        val commandLine = withBackgroundProgress(project, title = "Running all tests") {
+            reportSequentialProgress { reporter ->
+                reporter.indeterminateStep("Collecting tests")
+
+                smartReadAction(project) {
+                    val testDeclarations = filterAndCollectTestDeclarations(files)
+                    computeGradleCommandLine(testDeclarations)
                 }
             }
-
-            runGradleCommandLine(e, commandLine, debug, useProjectBasePath = false)
         }
+
+        runGradleCommandLine(e, commandLine, debug, useProjectBasePath = false)
     }
 
     fun collectAndRunSpecificTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean) {

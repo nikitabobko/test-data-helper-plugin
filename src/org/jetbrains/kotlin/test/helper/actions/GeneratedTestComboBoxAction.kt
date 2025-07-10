@@ -16,6 +16,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
@@ -27,13 +28,17 @@ import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.platform.ide.progress.withBackgroundProgress
+import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import com.intellij.testIntegration.TestRunLineMarkerProvider
 import com.intellij.ui.components.JBLabel
-import com.intellij.util.application
 import com.intellij.util.concurrency.AppExecutorUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.createGradleExternalSystemTaskExecutionSettings
@@ -47,6 +52,8 @@ import javax.swing.BoxLayout
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBoxAction<String>(), DumbAware {
     companion object {
@@ -235,7 +242,8 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         AllIcons.RunConfigurations.Junit
     ), DumbAware {
         override fun actionPerformed(e: AnActionEvent) {
-            runAllTests(e, delay = false)
+            e.project?.service<TestDataRunnerService>()
+                ?.collectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
         }
     }
 
@@ -267,43 +275,118 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             },
             object : AnAction("Run Selected && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
+                    val project = e.project ?: return
                     state.executeRunConfigAction(e, INDEX_RUN)
-                    awaitTestRunAndApplyDiffs(e.project ?: return)
+                    project.service<TestDataRunnerService>().scope.launch {
+                        withBackgroundProgress(project, "Running Selected & Applying Diffs") {
+                            reportSequentialProgress { reporter ->
+                                reporter.indeterminateStep("Running Selected")
+                                awaitTestFinishedAndApplyAllDiffs(project)
+                            }
+                        }
+                    }
                 }
             },
             object : GradleOnlyAction("Run All && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
-                    runAllAndApplyDiff(e, delay = false)
+                    val project = e.project ?: return
+
+                    val service = project.service<TestDataRunnerService>()
+                    service.scope.launch {
+                        withBackgroundProgress(project, "Running All Tests & Applying Diffs") {
+                            reportSequentialProgress { reporter ->
+                                reporter.indeterminateStep("Running All Tests")
+                                service.doRunAllTestsAndApplyDiffs(e, project)
+                            }
+                        }
+                    }
                 }
             },
             object : GradleOnlyAction("Generate Tests, Run All && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
-                    val (commandLine, _) = generateTestsCommandLine(project)
-                    ExternalSystemUtil.runTask(
-                        TaskExecutionSpec.create(
-                            project = project,
-                            systemId = GradleConstants.SYSTEM_ID,
-                            executorId = DefaultRunExecutor.getRunExecutorInstance().id,
-                            settings = createGradleExternalSystemTaskExecutionSettings(
-                                project, commandLine, useProjectBasePath = true
-                            )
-                        )
-                            .withActivateToolWindowBeforeRun(true)
-                            .withCallback(object : TaskCallback {
-                                override fun onSuccess() {
-                                    runAllAndApplyDiff(e, delay = true)
+                    val service = project.service<TestDataRunnerService>()
+                    service.scope.launch {
+                        withBackgroundProgress(project, "Generating Tests, Running All & Applying Diffs") {
+                            reportSequentialProgress { reporter ->
+                                reporter.nextStep(33)
+                                reporter.nextStep(66, "Generating Tests") {
+                                    generateTestsAndWait(project)
                                 }
 
-                                override fun onFailure() {
+                                reporter.nextStep(100, "Running All Tests") {
+                                    service.doRunAllTestsAndApplyDiffs(e, project)
                                 }
-                            }).build()
-                    )
+                            }
+                        }
+                    }
                 }
             },
         )
 
+        override fun getChildren(e: AnActionEvent?): Array<AnAction> {
+            return actions
+        }
+
+        private suspend fun TestDataRunnerService.doRunAllTestsAndApplyDiffs(e: AnActionEvent, project: Project) {
+            doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
+            awaitTestFinishedAndApplyAllDiffs(project)
+        }
+
+        private suspend fun awaitTestFinishedAndApplyAllDiffs(project: Project) {
+            val testProxy = awaitTestRun(project)
+
+            withContext(Dispatchers.EDT) {
+                applyDiffs(arrayOf(testProxy))
+            }
+        }
+
+        private suspend fun awaitTestRun(project: Project): SMTestProxy.SMRootTestProxy {
+            return suspendCoroutine {
+                val connection = project.messageBus.connect(baseEditor)
+                connection
+                    .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
+                        override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
+                            connection.disconnect()
+                            it.resume(testsRoot)
+                        }
+                    })
+            }
+        }
+
+        private suspend fun generateTestsAndWait(project: Project) {
+            val (commandLine, _) = generateTestsCommandLine(project)
+
+            suspendCoroutine {
+                ExternalSystemUtil.runTask(
+                    TaskExecutionSpec.create(
+                        project = project,
+                        systemId = GradleConstants.SYSTEM_ID,
+                        executorId = DefaultRunExecutor.getRunExecutorInstance().id,
+                        settings = createGradleExternalSystemTaskExecutionSettings(
+                            project, commandLine, useProjectBasePath = true
+                        )
+                    )
+                        .withActivateToolWindowBeforeRun(true)
+                        .withCallback(object : TaskCallback {
+                            override fun onSuccess() {
+                                it.resume(Unit)
+                            }
+
+                            override fun onFailure() {
+                                it.resume(Unit)
+                            }
+                        }).build()
+                )
+            }
+        }
+
         private fun generateTestsCommandLine(project: Project): Pair<String, String> {
+            fun isAncestor(basePath: String, vararg strings: String): Boolean {
+                val file = VfsUtil.findFile(Paths.get(basePath, *strings), false) ?: return false
+                return VfsUtil.isAncestor(file, baseEditor.file, false)
+            }
+
             val basePath = project.basePath
             return if (basePath != null &&
                 (isAncestor(basePath, "compiler", "testData", "diagnostics") ||
@@ -314,37 +397,5 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                 "generateTests" to "Generate Tests"
             }
         }
-
-        private fun isAncestor(basePath: String, vararg strings: String): Boolean {
-            val file = VfsUtil.findFile(Paths.get(basePath, *strings), false) ?: return false
-            return VfsUtil.isAncestor(file, baseEditor.file, false)
-        }
-
-        private fun runAllAndApplyDiff(e: AnActionEvent, delay: Boolean) {
-            val project = e.project ?: return
-
-            runAllTests(e, delay)
-            awaitTestRunAndApplyDiffs(project)
-        }
-
-        override fun getChildren(e: AnActionEvent?): Array<AnAction> {
-            return actions
-        }
-    }
-
-    private fun runAllTests(e: AnActionEvent, delay: Boolean) {
-        e.project?.service<TestDataRunnerService>()?.collectAndRunAllTests(e, listOf(baseEditor.file), debug = false, delay = delay)
-    }
-
-    private fun awaitTestRunAndApplyDiffs(project: Project) {
-        val connection = project.messageBus.connect(baseEditor)
-        connection
-            .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
-                override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
-                    connection.disconnect()
-                    application.invokeLater { applyDiffs(arrayOf(testsRoot)) }
-                }
-            })
     }
 }
-
