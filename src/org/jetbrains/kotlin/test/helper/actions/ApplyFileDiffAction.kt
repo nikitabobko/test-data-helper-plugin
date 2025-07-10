@@ -39,8 +39,8 @@ internal class ApplyFileDiffAction : DumbAwareAction() {
 fun applyDiffs(tests: Array<out AbstractTestProxy>) {
     val diffsByFile = tests
         .flatMap { it.collectChildrenRecursively(mutableListOf()) }
-        .distinct()
         .groupBy { it.filePath }
+        .mapValues { it.value.distinctBy { diff -> diff.right } }
 
     WriteAction.run<Throwable> {
         for ((filePath, diffs) in diffsByFile) {
