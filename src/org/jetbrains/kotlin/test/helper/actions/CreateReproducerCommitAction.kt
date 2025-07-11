@@ -7,7 +7,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
-import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
@@ -17,15 +16,15 @@ import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
 import git4idea.repo.GitRepositoryManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.awaitTestRun
 import org.jetbrains.kotlin.test.helper.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -48,7 +47,6 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
                         generateTestsAndWait(project, files)
                     }
                     reporter.nextStep(75, "Running Tests and Applying Diffs") {
-                        delay(100)
                         service.runTestAndApplyDiffLoop(e, project, files)
                     }
 
@@ -68,6 +66,7 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
     override val isDebug: Boolean
         get() = false
 
+    context(scope: CoroutineScope)
     private suspend fun TestDataRunnerService.runTestAndApplyDiffLoop(
         e: AnActionEvent,
         project: Project,
@@ -84,7 +83,7 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
             }
 
             if (result != ApplyDiffResult.SUCCESS) {
-                suspendCoroutine {
+                suspendCancellableCoroutine {
                     val notification = NotificationGroupManager.getInstance()
                         .getNotificationGroup("Kotlin Compiler DevKit Notifications")
                         .createNotification(
@@ -105,6 +104,8 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
                     })
 
                     notification.notify(project)
+
+                    it.invokeOnCancellation { notification.expire() }
                 }
             }
         }

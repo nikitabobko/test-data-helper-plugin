@@ -10,7 +10,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,9 +17,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
-import org.jetbrains.kotlin.test.helper.actions.collectTestMethodsIfTestData
 import org.jetbrains.kotlin.test.helper.actions.computeGradleCommandLine
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
+import org.jetbrains.kotlin.test.helper.filterAndCollectTestDeclarations
 import org.jetbrains.kotlin.test.helper.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.toFileNamesString
 import javax.swing.ListSelectionModel
@@ -47,7 +46,7 @@ class TestDataRunnerService(
                 reporter.indeterminateStep("Collecting tests")
 
                 smartReadAction(project) {
-                    val testDeclarations = filterAndCollectTestDeclarations(files)
+                    val testDeclarations = filterAndCollectTestDeclarations(files, project)
                     computeGradleCommandLine(testDeclarations)
                 }
             }
@@ -65,7 +64,7 @@ class TestDataRunnerService(
                     reporter.indeterminateStep("Collecting tests")
 
                     smartReadAction(project) {
-                        val testDeclarations = filterAndCollectTestDeclarations(files)
+                        val testDeclarations = filterAndCollectTestDeclarations(files, project)
                         val testTags = TestDataPathsConfiguration.getInstance(project).testTags
                         testDeclarations
                             .groupBy { it.parentsOfType<PsiClass>().last() }
@@ -98,10 +97,5 @@ class TestDataRunnerService(
                     .showInBestPositionFor(e.dataContext)
             }
         }
-    }
-
-    fun filterAndCollectTestDeclarations(files: List<VirtualFile>?): List<PsiNameIdentifierOwner> {
-        if (files == null) return emptyList()
-        return files.flatMap { it.collectTestMethodsIfTestData(project) }
     }
 }

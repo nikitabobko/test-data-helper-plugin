@@ -28,8 +28,8 @@ import com.intellij.psi.util.parentsOfType
 import com.intellij.testIntegration.TestRunLineMarkerProvider
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.concurrency.AppExecutorUtil
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
@@ -306,7 +306,6 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                                 }
 
                                 reporter.nextStep(100, "Running All Tests") {
-                                    delay(100)
                                     service.doRunAllTestsAndApplyDiffs(e, project)
                                 }
                             }
@@ -325,11 +324,13 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             return actions
         }
 
+        context(scope: CoroutineScope)
         private suspend fun TestDataRunnerService.doRunAllTestsAndApplyDiffs(e: AnActionEvent, project: Project) {
             doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
             awaitTestFinishedAndApplyAllDiffs(project)
         }
 
+        context(scope: CoroutineScope)
         private suspend fun awaitTestFinishedAndApplyAllDiffs(project: Project) {
             val testProxy = awaitTestRun(project)
 

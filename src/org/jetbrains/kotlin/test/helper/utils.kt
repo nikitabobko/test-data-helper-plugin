@@ -5,24 +5,33 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
+import com.intellij.execution.executors.DefaultRunExecutor.getRunExecutorInstance
 import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsAdapter
 import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
 import com.intellij.execution.testframework.sm.runner.SMTestProxy
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.application.smartReadAction
 import com.intellij.openapi.externalSystem.model.execution.ExternalSystemTaskExecutionSettings
 import com.intellij.openapi.externalSystem.task.TaskCallback
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
+import com.intellij.openapi.externalSystem.util.ExternalSystemUtil.runTask
 import com.intellij.openapi.externalSystem.util.task.TaskExecutionSpec
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiNameIdentifierOwner
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.jetbrains.kotlin.test.helper.actions.collectTestMethodsIfTestData
 import org.jetbrains.plugins.gradle.settings.GradleLocalSettings
 import org.jetbrains.plugins.gradle.util.GradleConstants
+import org.jetbrains.plugins.gradle.util.GradleConstants.SYSTEM_ID
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileVisitResult
@@ -32,7 +41,6 @@ import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import kotlin.io.path.Path
 import kotlin.io.path.pathString
 
@@ -219,33 +227,31 @@ fun Project.isGradleEnabled(): Boolean = ExternalSystemApiUtil
     .availableProjects
     .isNotEmpty()
 
+context(scope: CoroutineScope)
 suspend fun awaitTestRun(project: Project): SMTestProxy.SMRootTestProxy {
-    return coroutineScope {
-        suspendCoroutine {
-            val connection = project.messageBus.connect(this@coroutineScope)
-            connection
-                .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
-                    override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
-                        connection.disconnect()
-                        it.resume(testsRoot)
-                    }
-                })
-        }
+    return suspendCancellableCoroutine {
+        val connection = project.messageBus.connect(scope)
+        connection
+            .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
+                override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
+                    connection.disconnect()
+                    it.resume(testsRoot)
+                }
+            })
+
+        it.invokeOnCancellation { connection.disconnect() }
     }
 }
 
 suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
     val (commandLine, _) = generateTestsCommandLine(project, files)
-    generateTestsAndWait(project, commandLine)
-}
 
-suspend fun generateTestsAndWait(project: Project, commandLine: String) {
-    suspendCoroutine {
-        ExternalSystemUtil.runTask(
+    suspendCancellableCoroutine {
+        runTask(
             TaskExecutionSpec.create(
                 project = project,
-                systemId = GradleConstants.SYSTEM_ID,
-                executorId = DefaultRunExecutor.getRunExecutorInstance().id,
+                systemId = SYSTEM_ID,
+                executorId = getRunExecutorInstance().id,
                 settings = createGradleExternalSystemTaskExecutionSettings(
                     project, commandLine, useProjectBasePath = true
                 )
@@ -256,6 +262,14 @@ suspend fun generateTestsAndWait(project: Project, commandLine: String) {
                     override fun onFailure() = it.resume(Unit)
                 }).build()
         )
+    }
+
+    for (i in 1..10) {
+        val tests = smartReadAction(project) {
+            filterAndCollectTestDeclarations(files, project)
+        }
+        if (tests.isNotEmpty()) break
+        delay(500)
     }
 }
 
@@ -274,4 +288,9 @@ fun generateTestsCommandLine(project: Project, files: List<VirtualFile>): Pair<S
     } else {
         "generateTests" to "Generate Tests"
     }
+}
+
+fun filterAndCollectTestDeclarations(files: List<VirtualFile>?, project: Project): List<PsiNameIdentifierOwner> {
+    if (files == null) return emptyList()
+    return files.flatMap { it.collectTestMethodsIfTestData(project) }
 }
