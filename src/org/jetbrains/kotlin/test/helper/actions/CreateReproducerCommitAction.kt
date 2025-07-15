@@ -5,6 +5,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
@@ -18,7 +19,9 @@ import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
 import git4idea.repo.GitRepositoryManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataType
 import org.jetbrains.kotlin.test.helper.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.getTestDataType
@@ -56,7 +59,9 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
                     reporter.nextStep(100, "Committing Changes") {
                         commitAll(project, ticketNumber)
 
-                        ActionUtil.performActionDumbAwareWithCallbacks(RefreshAction(), e)
+                        withContext(Dispatchers.EDT) {
+                            ActionUtil.performActionDumbAwareWithCallbacks(RefreshAction(), e)
+                        }
                     }
 
                     NotificationGroupManager.getInstance()
