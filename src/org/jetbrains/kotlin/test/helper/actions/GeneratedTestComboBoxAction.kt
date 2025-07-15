@@ -28,12 +28,10 @@ import com.intellij.psi.util.parentsOfType
 import com.intellij.testIntegration.TestRunLineMarkerProvider
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.concurrency.AppExecutorUtil
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
-import org.jetbrains.kotlin.test.helper.awaitTestRun
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.generateTestsCommandLine
@@ -271,7 +269,11 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                         withBackgroundProgress(project, "Running Selected & Applying Diffs") {
                             reportSequentialProgress { reporter ->
                                 reporter.indeterminateStep("Running Selected")
-                                runTestAndApplyDiffLoop(project) { state.executeRunConfigAction(e, INDEX_RUN) }
+                                runTestAndApplyDiffLoop(project) {
+                                    withContext(Dispatchers.EDT) {
+                                        state.executeRunConfigAction(e, INDEX_RUN)
+                                    }
+                                }
                             }
                         }
                     }
