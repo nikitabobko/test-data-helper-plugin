@@ -5,16 +5,27 @@ import com.intellij.diff.comparison.ComparisonPolicy
 import com.intellij.diff.util.ThreeSide
 import com.intellij.execution.testframework.AbstractTestProxy
 import com.intellij.execution.testframework.stacktrace.DiffHyperlink
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.fileEditor.impl.LoadTextUtil
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtilRt
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.writeText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import org.jetbrains.kotlin.test.helper.awaitTestRun
 import java.nio.file.Paths
+import kotlin.coroutines.resume
 
 internal class ApplyFileDiffAction : DumbAwareAction() {
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -33,6 +44,50 @@ internal class ApplyFileDiffAction : DumbAwareAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val tests = AbstractTestProxy.DATA_KEYS.getData(e.dataContext) ?: return
         applyDiffs(tests)
+    }
+}
+
+context(scope: CoroutineScope)
+suspend fun runTestAndApplyDiffLoop(
+    project: Project,
+    runTests: suspend () -> Unit,
+) {
+    while (true) {
+        runTests()
+
+        val testProxy = awaitTestRun(project)
+        if (testProxy.isPassed) break
+
+        val result = withContext(Dispatchers.EDT) {
+            applyDiffs(arrayOf(testProxy))
+        }
+
+        if (result != ApplyDiffResult.SUCCESS) {
+            suspendCancellableCoroutine {
+                val notification = NotificationGroupManager.getInstance()
+                    .getNotificationGroup("Kotlin Compiler DevKit Notifications")
+                    .createNotification(
+                        when (result) {
+                            ApplyDiffResult.HAS_CONFLICT -> "Applying diffs produced a conflict. Resolve conflicts to continue."
+                            ApplyDiffResult.NO_DIFFS -> "Tests failed without a diff. Address test failures to continue."
+                            ApplyDiffResult.SUCCESS -> error("Not possible")
+                        }, NotificationType.ERROR
+                    )
+                    .setImportant(true)
+                    .setRemoveWhenExpired(true)
+
+                notification.addAction(object : AnAction("Continue") {
+                    override fun actionPerformed(p0: AnActionEvent) {
+                        it.resume(Unit)
+                        notification.expire()
+                    }
+                })
+
+                notification.notify(project)
+
+                it.invokeOnCancellation { notification.expire() }
+            }
+        }
     }
 }
 
