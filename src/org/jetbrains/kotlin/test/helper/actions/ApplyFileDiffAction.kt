@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.test.helper.actions
 
 import com.intellij.diff.comparison.ComparisonManager
 import com.intellij.diff.comparison.ComparisonPolicy
+import com.intellij.diff.comparison.MergeResolveUtil
 import com.intellij.diff.util.ThreeSide
 import com.intellij.execution.testframework.AbstractTestProxy
 import com.intellij.execution.testframework.stacktrace.DiffHyperlink
@@ -187,13 +188,22 @@ private fun autoMerge(left: String, base: String, right: String, onConflict: () 
             leftChunk == baseChunk -> result += rightChunk
             rightChunk == baseChunk -> result += leftChunk
             else -> {
-                // Conflict
-                result += "<<<<<<< LEFT"
-                result += leftChunk
-                result += "======="
-                result += rightChunk
-                result += ">>>>>>> RIGHT"
-                onConflict()
+                val greedyResolution = MergeResolveUtil.tryGreedyResolve(
+                    leftChunk.joinToString("\n"),
+                    baseChunk.joinToString("\n"),
+                    rightChunk.joinToString("\n")
+                )
+                if (greedyResolution != null) {
+                    result += greedyResolution.lines()
+                } else {
+                    // Conflict
+                    result += "<<<<<<< LEFT"
+                    result += leftChunk
+                    result += "======="
+                    result += rightChunk
+                    result += ">>>>>>> RIGHT"
+                    onConflict()
+                }
             }
         }
 
