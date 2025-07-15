@@ -5,10 +5,12 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.vcs.changes.actions.RefreshAction
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
@@ -52,6 +54,8 @@ class CreateReproducerCommitAction : RunSelectedFilesActionBase() {
 
                     reporter.nextStep(100, "Committing Changes") {
                         commitAll(project, ticketNumber)
+
+                        ActionUtil.performActionDumbAwareWithCallbacks(RefreshAction(), e)
                     }
 
                     NotificationGroupManager.getInstance()
