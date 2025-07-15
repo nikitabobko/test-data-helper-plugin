@@ -267,12 +267,11 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             object : AnAction("Run Selected && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
-                    state.executeRunConfigAction(e, INDEX_RUN)
                     project.service<TestDataRunnerService>().scope.launch {
                         withBackgroundProgress(project, "Running Selected & Applying Diffs") {
                             reportSequentialProgress { reporter ->
                                 reporter.indeterminateStep("Running Selected")
-                                awaitTestFinishedAndApplyAllDiffs(project)
+                                runTestAndApplyDiffLoop(project) { state.executeRunConfigAction(e, INDEX_RUN) }
                             }
                         }
                     }
@@ -287,7 +286,9 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                         withBackgroundProgress(project, "Running All Tests & Applying Diffs") {
                             reportSequentialProgress { reporter ->
                                 reporter.indeterminateStep("Running All Tests")
-                                service.doRunAllTestsAndApplyDiffs(e, project)
+                                runTestAndApplyDiffLoop(project) {
+                                    service.doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
+                                }
                             }
                         }
                     }
@@ -306,7 +307,9 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                                 }
 
                                 reporter.nextStep(100, "Running All Tests") {
-                                    service.doRunAllTestsAndApplyDiffs(e, project)
+                                    runTestAndApplyDiffLoop(project) {
+                                        service.doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
+                                    }
                                 }
                             }
                         }
@@ -322,21 +325,6 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
 
         override fun getChildren(e: AnActionEvent?): Array<AnAction> {
             return actions
-        }
-
-        context(scope: CoroutineScope)
-        private suspend fun TestDataRunnerService.doRunAllTestsAndApplyDiffs(e: AnActionEvent, project: Project) {
-            doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
-            awaitTestFinishedAndApplyAllDiffs(project)
-        }
-
-        context(scope: CoroutineScope)
-        private suspend fun awaitTestFinishedAndApplyAllDiffs(project: Project) {
-            val testProxy = awaitTestRun(project)
-
-            withContext(Dispatchers.EDT) {
-                applyDiffs(arrayOf(testProxy))
-            }
         }
     }
 }
