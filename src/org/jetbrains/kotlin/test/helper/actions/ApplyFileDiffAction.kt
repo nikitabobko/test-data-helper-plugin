@@ -11,19 +11,17 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.fileEditor.impl.LoadTextUtil
+import com.intellij.openapi.command.writeCommandAction
 import com.intellij.openapi.progress.EmptyProgressIndicator
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.rd.util.lifetime
 import com.intellij.openapi.util.text.StringUtilRt
 import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.vfs.writeText
+import com.intellij.openapi.vfs.findDocument
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.awaitTestRun
 import java.nio.file.Paths
 import kotlin.coroutines.resume
@@ -44,7 +42,10 @@ internal class ApplyFileDiffAction : DumbAwareAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val tests = AbstractTestProxy.DATA_KEYS.getData(e.dataContext) ?: return
-        applyDiffs(tests)
+        val project = e.project ?: return
+        project.lifetime.coroutineScope.launch {
+            applyDiffs(tests, project)
+        }
     }
 }
 
@@ -59,9 +60,7 @@ suspend fun runTestAndApplyDiffLoop(
         val testProxy = awaitTestRun(project)
         if (testProxy.isPassed) break
 
-        val result = withContext(Dispatchers.EDT) {
-            applyDiffs(arrayOf(testProxy))
-        }
+        val result = applyDiffs(arrayOf(testProxy), project)
 
         if (result != ApplyDiffResult.SUCCESS) {
             suspendCancellableCoroutine {
@@ -96,7 +95,7 @@ enum class ApplyDiffResult {
     SUCCESS, HAS_CONFLICT, NO_DIFFS
 }
 
-fun applyDiffs(tests: Array<out AbstractTestProxy>): ApplyDiffResult {
+suspend fun applyDiffs(tests: Array<out AbstractTestProxy>, project: Project): ApplyDiffResult {
     val diffsByFile = tests
         .flatMap { it.collectChildrenRecursively(mutableListOf()) }
         .groupBy { it.filePath }
@@ -104,14 +103,14 @@ fun applyDiffs(tests: Array<out AbstractTestProxy>): ApplyDiffResult {
 
     var result = if (diffsByFile.any { it.key != null }) ApplyDiffResult.SUCCESS else ApplyDiffResult.NO_DIFFS
 
-    WriteAction.run<Throwable> {
+    @Suppress("UnstableApiUsage")
+    writeCommandAction(project, "Applying Diffs") {
         for ((filePath, diffs) in diffsByFile) {
             if (filePath == null) continue
-            val file = VfsUtil.findFile(Paths.get(filePath), true) ?: continue
-            val lineSeparator = LoadTextUtil.detectLineSeparator(file, true) ?: "\n"
+            val document = VfsUtil.findFile(Paths.get(filePath), true)?.findDocument() ?: continue
 
             val result =  if (diffs.size == 1) {
-                StringUtilRt.convertLineSeparators(diffs.single().right, lineSeparator)
+                StringUtilRt.convertLineSeparators(diffs.single().right, "\n")
             } else {
                 val first = diffs.first()
                 val base = first.left
@@ -119,9 +118,9 @@ fun applyDiffs(tests: Array<out AbstractTestProxy>): ApplyDiffResult {
                     .windowed(2)
                     .fold(first.right) { acc, (_, right) ->
                         autoMerge(
-                            left = StringUtilRt.convertLineSeparators(acc, lineSeparator),
-                            base = StringUtilRt.convertLineSeparators(base, lineSeparator),
-                            right = StringUtilRt.convertLineSeparators(right.right, lineSeparator),
+                            left = StringUtilRt.convertLineSeparators(acc, "\n"),
+                            base = StringUtilRt.convertLineSeparators(base, "\n"),
+                            right = StringUtilRt.convertLineSeparators(right.right, "\n"),
                             onConflict = {
                                 result = ApplyDiffResult.HAS_CONFLICT
                             }
@@ -129,7 +128,7 @@ fun applyDiffs(tests: Array<out AbstractTestProxy>): ApplyDiffResult {
                     }
             }
 
-            file.writeText(StringUtilRt.convertLineSeparators(result, lineSeparator))
+            document.replaceString(0, document.textLength, result)
         }
     }
 
