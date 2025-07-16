@@ -23,8 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataType
-import org.jetbrains.kotlin.test.helper.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.getTestDataType
+import org.jetbrains.kotlin.test.helper.gradle.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 
 class CreateReproducerCommitAction : RunSelectedFilesActionBase() {

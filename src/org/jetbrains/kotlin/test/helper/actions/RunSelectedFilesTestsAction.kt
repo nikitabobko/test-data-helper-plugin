@@ -7,7 +7,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.components.service
 import org.jetbrains.kotlin.test.helper.getTestDataType
-import org.jetbrains.kotlin.test.helper.isGradleEnabled
+import org.jetbrains.kotlin.test.helper.gradle.isGradleEnabled
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 
 class RunSelectedFilesGroup : DefaultActionGroup() {

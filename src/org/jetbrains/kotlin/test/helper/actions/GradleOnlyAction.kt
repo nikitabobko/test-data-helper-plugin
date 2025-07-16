@@ -4,7 +4,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.util.NlsActions
-import org.jetbrains.kotlin.test.helper.isGradleEnabled
+import org.jetbrains.kotlin.test.helper.gradle.isGradleEnabled
 import javax.swing.Icon
 
 abstract class GradleOnlyAction : AnAction {

@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.test.helper.actions
+package org.jetbrains.kotlin.test.helper.gradle
 
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod

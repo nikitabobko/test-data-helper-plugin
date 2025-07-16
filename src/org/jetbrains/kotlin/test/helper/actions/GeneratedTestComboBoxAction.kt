@@ -33,9 +33,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
-import org.jetbrains.kotlin.test.helper.generateTestsAndWait
-import org.jetbrains.kotlin.test.helper.generateTestsCommandLine
-import org.jetbrains.kotlin.test.helper.runGradleCommandLine
+import org.jetbrains.kotlin.test.helper.gradle.generateTestsAndWait
+import org.jetbrains.kotlin.test.helper.gradle.generateTestsCommandLine
+import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 import org.jetbrains.kotlin.test.helper.ui.WidthAdjustingPanel
 import java.util.concurrent.Callable

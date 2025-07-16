@@ -5,6 +5,9 @@ import com.intellij.diff.comparison.ComparisonPolicy
 import com.intellij.diff.comparison.MergeResolveUtil
 import com.intellij.diff.util.ThreeSide
 import com.intellij.execution.testframework.AbstractTestProxy
+import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsAdapter
+import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
+import com.intellij.execution.testframework.sm.runner.SMTestProxy
 import com.intellij.execution.testframework.stacktrace.DiffHyperlink
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -22,7 +25,6 @@ import com.intellij.openapi.vfs.findDocument
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import org.jetbrains.kotlin.test.helper.awaitTestRun
 import java.nio.file.Paths
 import kotlin.coroutines.resume
 
@@ -88,6 +90,22 @@ suspend fun runTestAndApplyDiffLoop(
                 it.invokeOnCancellation { notification.expire() }
             }
         }
+    }
+}
+
+context(scope: CoroutineScope)
+private suspend fun awaitTestRun(project: Project): SMTestProxy.SMRootTestProxy {
+    return suspendCancellableCoroutine {
+        val connection = project.messageBus.connect(scope)
+        connection
+            .subscribe(SMTRunnerEventsListener.TEST_STATUS, object : SMTRunnerEventsAdapter() {
+                override fun onTestingFinished(testsRoot: SMTestProxy.SMRootTestProxy) {
+                    connection.disconnect()
+                    it.resume(testsRoot)
+                }
+            })
+
+        it.invokeOnCancellation { connection.disconnect() }
     }
 }
 

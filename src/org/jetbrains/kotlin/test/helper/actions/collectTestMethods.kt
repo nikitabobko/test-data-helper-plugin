@@ -17,6 +17,11 @@ import java.io.File
 
 private val testNameReplacementRegex = "[.-]".toRegex()
 
+fun filterAndCollectTestDeclarations(files: List<VirtualFile>?, project: Project): List<PsiNameIdentifierOwner> {
+    if (files == null) return emptyList()
+    return files.flatMap { it.collectTestMethodsIfTestData(project) }
+}
+
 fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstChild: Boolean = true): List<PsiNameIdentifierOwner> {
     val testDataType = getTestDataType(project) ?: return emptyList()
 
@@ -41,7 +46,7 @@ fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstCh
 
                 emptyList()
             }
-        classes.filter { it ->
+        classes.filter {
             val (testMetaData, testDataPath) = it.extractClassTestMetadata(project)
             buildPath(null, testMetaData, testDataPath, project) == truePathWithoutAllExtensions
         }
