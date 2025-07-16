@@ -12,6 +12,8 @@ import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
 
 fun computeGradleCommandLine(testDeclarations: List<PsiNameIdentifierOwner>): String = buildString {
+    val singleTest = testDeclarations.size == 1
+
     testDeclarations
         .flatMap { psi ->
             val parentClass = psi as? PsiClass ?: psi.parentOfType<PsiClass>() ?: return@flatMap emptyList()
@@ -30,7 +32,7 @@ fun computeGradleCommandLine(testDeclarations: List<PsiNameIdentifierOwner>): St
         }
         .groupBy({ (group, name) -> group to name }) { it.third }
         .forEach { (group, name), taskArguments ->
-            append("$group:cleanTest ")
+            if (!singleTest) append("$group:cleanTest ")
             append("$group:$name ")
             for (taskArgument in taskArguments) {
                 append(taskArgument)
@@ -38,5 +40,5 @@ fun computeGradleCommandLine(testDeclarations: List<PsiNameIdentifierOwner>): St
             }
         }
 
-    append(" --continue")
+    if (!singleTest) append(" --continue")
 }

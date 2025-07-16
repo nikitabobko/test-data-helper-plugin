@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.gradle.computeGradleCommandLine
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDeclarations
+import org.jetbrains.kotlin.test.helper.gradle.GradleRunConfig
 import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.toFileNamesString
 import javax.swing.ListSelectionModel
@@ -52,7 +53,14 @@ class TestDataRunnerService(
             }
         }
 
-        runGradleCommandLine(e, commandLine, debug, useProjectBasePath = false)
+        val config = GradleRunConfig(
+            commandLine,
+            title = e.toFileNamesString(),
+            debug = debug,
+            useProjectBasePath = false,
+            runAsTest = true
+        )
+        runGradleCommandLine(e, config)
     }
 
     fun collectAndRunSpecificTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean) {
@@ -86,7 +94,14 @@ class TestDataRunnerService(
                             }
 
                             withContext(Dispatchers.EDT) {
-                                runGradleCommandLine(e, commandLine, debug, title = e.toFileNamesString()?.let { "$selected: $it" }, useProjectBasePath = false)
+                                val config = GradleRunConfig(
+                                    commandLine,
+                                    title = e.toFileNamesString()?.let { "$selected: $it" },
+                                    debug = debug,
+                                    useProjectBasePath = false,
+                                    runAsTest = true,
+                                )
+                                runGradleCommandLine(e, config)
                             }
                         }
 

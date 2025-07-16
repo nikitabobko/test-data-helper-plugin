@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
+import org.jetbrains.kotlin.test.helper.gradle.GradleRunConfig
 import org.jetbrains.kotlin.test.helper.gradle.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.gradle.generateTestsCommandLine
 import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
@@ -259,7 +260,9 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val (commandLine, title) = generateTestsCommandLine(project, listOf(baseEditor.file))
-                    runGradleCommandLine(e, commandLine, false, useProjectBasePath = true, title)
+                    val config =
+                        GradleRunConfig(commandLine, title, useProjectBasePath = true, runAsTest = false, debug = false)
+                    runGradleCommandLine(e, config)
                 }
             },
             object : AnAction("Run Selected && Apply Diffs"), DumbAware {
