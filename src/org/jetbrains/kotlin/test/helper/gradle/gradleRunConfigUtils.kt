@@ -56,6 +56,8 @@ private fun createGradleRunAndConfigurationSettings(project: Project, config: Gr
     return runSettings
 }
 
+private val REGEX_MULTIPLE_SPACES = " +".toRegex()
+
 fun createGradleExternalSystemTaskExecutionSettings(
     project: Project,
     fullCommandLine: String,
@@ -70,7 +72,7 @@ fun createGradleExternalSystemTaskExecutionSettings(
                 GradleConstants.SYSTEM_ID
             ).availableProjects.keys.firstOrNull()?.let { FileUtil.toCanonicalPath(it.path) }
         }
-        taskNames = fullCommandLine.split(" ")
+        taskNames = fullCommandLine.split(REGEX_MULTIPLE_SPACES)
         externalSystemIdString = GradleConstants.SYSTEM_ID.id
     }
 }

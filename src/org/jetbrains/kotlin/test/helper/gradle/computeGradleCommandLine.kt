@@ -40,5 +40,5 @@ fun computeGradleCommandLine(testDeclarations: List<PsiNameIdentifierOwner>): St
             }
         }
 
-    if (!singleTest) append(" --continue")
+    if (!singleTest) append("--continue")
 }
