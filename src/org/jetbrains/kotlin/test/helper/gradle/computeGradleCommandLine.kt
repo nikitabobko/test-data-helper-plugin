@@ -6,10 +6,6 @@ import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentOfType
 import org.jetbrains.plugins.gradle.execution.test.runner.GradleTestRunConfigurationProducer
 import org.jetbrains.plugins.gradle.util.createTestFilterFrom
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.text.substringAfterLast
-import kotlin.text.substringBeforeLast
 
 fun computeGradleCommandLine(testDeclarations: List<PsiNameIdentifierOwner>): String = buildString {
     val singleTest = testDeclarations.size == 1

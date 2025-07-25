@@ -4,8 +4,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import org.jetbrains.kotlin.test.helper.getTestDataType
-import org.jetbrains.kotlin.test.helper.nameWithoutAllExtensions
 import java.io.File
 
 private val DIGIT_REGEX = """\d+""".toRegex()

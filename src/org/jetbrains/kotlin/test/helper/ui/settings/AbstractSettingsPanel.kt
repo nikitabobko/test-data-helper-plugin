@@ -6,7 +6,6 @@ import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.ui.PanelWithButtons
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.JBUI
-import org.gradle.platform.base.Application
 import java.util.Arrays
 import javax.swing.JButton
 import javax.swing.ListSelectionModel

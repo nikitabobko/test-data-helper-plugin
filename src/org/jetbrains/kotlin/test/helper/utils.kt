@@ -1,7 +1,5 @@
 package org.jetbrains.kotlin.test.helper
 
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.psi.PsiClass
 import java.io.IOException
 import java.nio.file.FileVisitResult
