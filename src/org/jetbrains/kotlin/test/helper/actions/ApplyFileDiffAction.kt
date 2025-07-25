@@ -67,7 +67,7 @@ suspend fun runTestAndApplyDiffLoop(
         if (result != ApplyDiffResult.SUCCESS) {
             suspendCancellableCoroutine {
                 val notification = NotificationGroupManager.getInstance()
-                    .getNotificationGroup("Kotlin Compiler DevKit Notifications")
+                    .getNotificationGroup("Kotlin Compiler DevKit Run Apply")
                     .createNotification(
                         when (result) {
                             ApplyDiffResult.HAS_CONFLICT -> "Applying diffs produced a conflict. Resolve conflicts to continue."

@@ -31,6 +31,9 @@
         <notificationGroup id="Kotlin Compiler DevKit Notifications"
           displayType="BALLOON"
           key="compiler.devkit.notifications"/>
+        <notificationGroup id="Kotlin Compiler DevKit Run Apply"
+          displayType="STICKY_BALLOON"
+          key="compiler.devkit.run_apply"/>
 
     </extensions>
 
