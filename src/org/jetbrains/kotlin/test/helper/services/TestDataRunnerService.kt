@@ -10,6 +10,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,14 +42,21 @@ class TestDataRunnerService(
         }
     }
 
-    suspend fun doCollectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>, debug: Boolean) {
+    suspend fun doCollectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>, debug: Boolean, filterByClass: String? = null) {
         val commandLine = withBackgroundProgress(project, title = "Running all tests") {
             reportSequentialProgress { reporter ->
                 reporter.indeterminateStep("Collecting tests")
 
                 smartReadAction(project) {
                     val testDeclarations = filterAndCollectTestDeclarations(files, project)
-                    computeGradleCommandLine(testDeclarations)
+
+                    val filtered = if (!filterByClass.isNullOrEmpty()) {
+                        groupTests(testDeclarations)[filterByClass] ?: testDeclarations
+                    } else {
+                        testDeclarations
+                    }
+
+                    computeGradleCommandLine(filtered)
                 }
             }
         }
@@ -73,10 +81,7 @@ class TestDataRunnerService(
 
                     smartReadAction(project) {
                         val testDeclarations = filterAndCollectTestDeclarations(files, project)
-                        val testTags = TestDataPathsConfiguration.getInstance(project).testTags
-                        testDeclarations
-                            .groupBy { it.parentsOfType<PsiClass>().last() }
-                            .mapKeys { it.key.buildRunnerLabel(testTags) }
+                        groupTests(testDeclarations)
                     }
                 }
             }
@@ -112,5 +117,12 @@ class TestDataRunnerService(
                     .showInBestPositionFor(e.dataContext)
             }
         }
+    }
+
+    private fun groupTests(testDeclarations: List<PsiNameIdentifierOwner>): Map<String, List<PsiNameIdentifierOwner>> {
+        val testTags = TestDataPathsConfiguration.getInstance(project).testTags
+        return testDeclarations
+            .groupBy { it.parentsOfType<PsiClass>().last() }
+            .mapKeys { it.key.buildRunnerLabel(testTags) }
     }
 }

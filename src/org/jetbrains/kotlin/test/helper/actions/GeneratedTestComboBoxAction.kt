@@ -268,14 +268,20 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             object : AnAction("Run Selected && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
-                    project.service<TestDataRunnerService>().scope.launch {
+                    val service = project.service<TestDataRunnerService>()
+                    service.scope.launch {
                         withBackgroundProgress(project, "Running Selected & Applying Diffs") {
                             reportSequentialProgress { reporter ->
                                 reporter.indeterminateStep("Running Selected")
+                                val className = state.methodsClassNames[state.currentChosenGroup]
+
                                 runTestAndApplyDiffLoop(project) {
-                                    withContext(Dispatchers.EDT) {
-                                        state.executeRunConfigAction(e, INDEX_RUN)
-                                    }
+                                    service.doCollectAndRunAllTests(
+                                        e,
+                                        listOf(baseEditor.file),
+                                        debug = false,
+                                        filterByClass = className
+                                    )
                                 }
                             }
                         }
