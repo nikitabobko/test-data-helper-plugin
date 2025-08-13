@@ -59,7 +59,7 @@ class TestDataRunnerService(
 
         val config = GradleRunConfig(
             commandLine,
-            title = e.toFileNamesString(),
+            title = e.toFileNamesString()?.let { "$filterByClass: $it" },
             debug = debug,
             useProjectBasePath = false,
             runAsTest = true
