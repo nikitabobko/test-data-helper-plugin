@@ -51,7 +51,10 @@ private fun createGradleRunAndConfigurationSettings(project: Project, config: Gr
 
     config.title?.let { runSettings.name = it }
 
-    (runSettings.configuration as GradleRunConfiguration).isRunAsTest = config.runAsTest
+    (runSettings.configuration as GradleRunConfiguration).run {
+        isRunAsTest = config.runAsTest
+        isDebugServerProcess = false
+    }
 
     return runSettings
 }
