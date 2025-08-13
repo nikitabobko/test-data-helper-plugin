@@ -90,8 +90,10 @@ class TestDataRunnerService(
                 JBPopupFactory.getInstance()
                     .createPopupChooserBuilder(byClass.keys.sortedBy { it })
                     .setTitle("Select Test Class")
-                    .setItemChosenCallback { selected ->
-                        val testMethods = byClass[selected] ?: return@setItemChosenCallback
+                    .setItemsChosenCallback { selected ->
+                        val testMethods = selected
+                            .flatMap { byClass[it].orEmpty() }
+                            .ifEmpty { return@setItemsChosenCallback }
 
                         scope.launch(Dispatchers.Default) {
                             val commandLine = smartReadAction(project) {
@@ -112,7 +114,7 @@ class TestDataRunnerService(
 
                     }
                     .setNamerForFiltering { it }
-                    .setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+                    .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
                     .createPopup()
                     .showInBestPositionFor(e.dataContext)
             }
