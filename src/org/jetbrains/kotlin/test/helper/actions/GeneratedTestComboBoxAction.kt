@@ -265,7 +265,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     runGradleCommandLine(e, config)
                 }
             },
-            object : AnAction("Run Selected && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Run Selected && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val service = project.service<TestDataRunnerService>()
