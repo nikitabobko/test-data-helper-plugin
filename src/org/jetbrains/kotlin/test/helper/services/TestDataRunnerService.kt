@@ -30,11 +30,11 @@ class TestDataRunnerService(
     val project: Project,
     val scope: CoroutineScope
 ) {
-    fun collectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean) {
+    fun collectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean, filterByClass: String? = null) {
         if (files == null) return
 
         scope.launch(Dispatchers.Default) {
-            doCollectAndRunAllTests(e, files, debug)
+            doCollectAndRunAllTests(e, files, debug, filterByClass)
         }
     }
 

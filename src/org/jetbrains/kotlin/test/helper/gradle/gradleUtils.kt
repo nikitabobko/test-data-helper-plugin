@@ -12,14 +12,32 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDeclarations
 import org.jetbrains.plugins.gradle.settings.GradleLocalSettings
+import org.jetbrains.plugins.gradle.settings.GradleSettings
+import org.jetbrains.plugins.gradle.settings.TestRunner
 import org.jetbrains.plugins.gradle.util.GradleConstants
-import org.jetbrains.plugins.gradle.util.GradleConstants.SYSTEM_ID
+import java.nio.file.Paths
 import kotlin.coroutines.resume
 
-fun Project.isGradleEnabled(): Boolean = ExternalSystemApiUtil
-    .getLocalSettings<GradleLocalSettings>(this, GradleConstants.SYSTEM_ID)
-    .availableProjects
-    .isNotEmpty()
+/**
+ * True when Gradle is available but not necessarily used as test runner.
+ *
+ * [hasGradleTestRunner] implies [isGradleEnabled] but not the other way round.
+ */
+fun Project.isGradleEnabled(): Boolean {
+    return ExternalSystemApiUtil
+        .getLocalSettings<GradleLocalSettings>(this, GradleConstants.SYSTEM_ID)
+        .availableProjects
+        .isNotEmpty()
+}
+
+/**
+ * True when "Run tests using" is set to Gradle for the module containing the given [file].
+ */
+fun Project.hasGradleTestRunner(file: VirtualFile): Boolean {
+    val projectSettings = GradleSettings.getInstance(this).linkedProjectsSettings
+        .firstOrNull { file.toNioPath().startsWith(Paths.get(it.externalProjectPath)) }
+    return projectSettings?.testRunner == TestRunner.GRADLE
+}
 
 suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
     val (commandLine, _) = generateTestsCommandLine(project, files)
@@ -28,7 +46,7 @@ suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
         runTask(
             TaskExecutionSpec.create(
                 project = project,
-                systemId = SYSTEM_ID,
+                systemId = GradleConstants.SYSTEM_ID,
                 executorId = getRunExecutorInstance().id,
                 settings = createGradleExternalSystemTaskExecutionSettings(
                     project, commandLine, useProjectBasePath = true

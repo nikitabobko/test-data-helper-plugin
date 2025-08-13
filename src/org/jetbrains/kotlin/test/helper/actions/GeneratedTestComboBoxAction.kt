@@ -12,7 +12,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.service
@@ -28,14 +27,13 @@ import com.intellij.psi.util.parentsOfType
 import com.intellij.testIntegration.TestRunLineMarkerProvider
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.concurrency.AppExecutorUtil
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.gradle.GradleRunConfig
 import org.jetbrains.kotlin.test.helper.gradle.generateTestsAndWait
 import org.jetbrains.kotlin.test.helper.gradle.generateTestsCommandLine
+import org.jetbrains.kotlin.test.helper.gradle.hasGradleTestRunner
 import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.services.TestDataRunnerService
 import org.jetbrains.kotlin.test.helper.ui.WidthAdjustingPanel
@@ -176,8 +174,15 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         }
 
         internal fun executeRunConfigAction(e: AnActionEvent, index: Int) {
-            val action = debugAndRunActionLists.elementAtOrNull(currentChosenGroup)?.elementAtOrNull(index) ?: return
-            ActionUtil.performActionDumbAwareWithCallbacks(action, e)
+            if (project.hasGradleTestRunner(baseEditor.file)) {
+                val className = methodsClassNames[currentChosenGroup]
+                project.service<TestDataRunnerService>()
+                    .collectAndRunAllTests(e, listOf(baseEditor.file), debug = index == 1, filterByClass = className)
+            } else {
+                val action =
+                    debugAndRunActionLists.elementAtOrNull(currentChosenGroup)?.elementAtOrNull(index) ?: return
+                ActionUtil.performActionDumbAwareWithCallbacks(action, e)
+            }
         }
 
         private fun updateUiAccordingCollectedTests(classAndActions: List<Pair<String, List<AnAction>>>) {
