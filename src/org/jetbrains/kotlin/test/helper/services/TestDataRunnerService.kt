@@ -14,7 +14,6 @@ import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
@@ -25,19 +24,16 @@ import org.jetbrains.kotlin.test.helper.gradle.computeGradleCommandLine
 import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
 import org.jetbrains.kotlin.test.helper.toFileNamesString
 import javax.swing.ListSelectionModel
-import kotlin.time.Duration.Companion.seconds
 
 @Service(Service.Level.PROJECT)
 class TestDataRunnerService(
     val project: Project,
     val scope: CoroutineScope
 ) {
-    fun collectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean, delay: Boolean = false) {
+    fun collectAndRunAllTests(e: AnActionEvent, files: List<VirtualFile>?, debug: Boolean) {
         if (files == null) return
 
         scope.launch(Dispatchers.Default) {
-            if (delay) delay(1.seconds)
-
             doCollectAndRunAllTests(e, files, debug)
         }
     }
