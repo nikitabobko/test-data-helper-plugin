@@ -97,9 +97,10 @@ class TestDataRunnerService(
                             }
 
                             withContext(Dispatchers.EDT) {
+                                val prefix = selected.singleOrNull() ?: selected.toString()
                                 val config = GradleRunConfig(
                                     commandLine,
-                                    title = e.toFileNamesString()?.let { "$selected: $it" },
+                                    title = e.toFileNamesString()?.let { "$prefix: $it" },
                                     debug = debug,
                                     useProjectBasePath = false,
                                     runAsTest = true,
