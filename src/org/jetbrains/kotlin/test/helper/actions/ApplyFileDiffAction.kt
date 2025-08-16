@@ -22,6 +22,7 @@ import com.intellij.openapi.rd.util.lifetime
 import com.intellij.openapi.util.text.StringUtilRt
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.findDocument
+import com.intellij.psi.PsiDocumentManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -147,6 +148,7 @@ suspend fun applyDiffs(tests: Array<out AbstractTestProxy>, project: Project): A
             }
 
             document.replaceString(0, document.textLength, result)
+            PsiDocumentManager.getInstance(project).commitDocument(document)
         }
     }
 
@@ -205,7 +207,7 @@ private fun autoMerge(left: String, base: String, right: String, onConflict: () 
             leftChunk == baseChunk -> result += rightChunk
             rightChunk == baseChunk -> result += leftChunk
             else -> {
-                val greedyResolution = MergeResolveUtil.tryGreedyResolve(
+                val greedyResolution = MergeResolveUtil.tryResolve(
                     leftChunk.joinToString("\n"),
                     baseChunk.joinToString("\n"),
                     rightChunk.joinToString("\n")
