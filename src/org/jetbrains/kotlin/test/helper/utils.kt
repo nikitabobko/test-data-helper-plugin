@@ -1,6 +1,8 @@
 package org.jetbrains.kotlin.test.helper
 
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiNameIdentifierOwner
+import com.intellij.psi.util.parentsOfType
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -50,6 +52,9 @@ fun PsiClass.buildRunnerLabel(allTags: Map<String, Array<String>>): String {
         } else null
     }.orEmpty()
     return buildString {
+        if (this@buildRunnerLabel.isHeavyTest()) {
+            this.append("{H} ")
+        }
         if (tags.isNotEmpty()) {
             this.append(tags.joinToString(prefix = "[", postfix = "] ", separator = ", "))
         }
@@ -57,3 +62,9 @@ fun PsiClass.buildRunnerLabel(allTags: Map<String, Array<String>>): String {
     }
 }
 
+private const val HEAVY_TEST_ANNOTATION_FQN = "org.jetbrains.kotlin.test.HeavyTest"
+
+fun PsiNameIdentifierOwner.isHeavyTest(): Boolean {
+    return this.parentsOfType<PsiClass>(withSelf = true)
+        .any { it.hasAnnotation(HEAVY_TEST_ANNOTATION_FQN) }
+}

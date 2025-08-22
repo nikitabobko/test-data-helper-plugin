@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.gradle.GradleRunConfig
 import org.jetbrains.kotlin.test.helper.gradle.computeGradleCommandLine
 import org.jetbrains.kotlin.test.helper.gradle.runGradleCommandLine
+import org.jetbrains.kotlin.test.helper.isHeavyTest
 import org.jetbrains.kotlin.test.helper.toFileNamesString
 import javax.swing.ListSelectionModel
 
@@ -45,6 +46,7 @@ class TestDataRunnerService(
 
                 smartReadAction(project) {
                     val testDeclarations = filterAndCollectTestDeclarations(files, project)
+                        .filter { !it.isHeavyTest() }
 
                     val filtered = if (!filterByClass.isNullOrEmpty()) {
                         groupTests(testDeclarations)[filterByClass] ?: testDeclarations
