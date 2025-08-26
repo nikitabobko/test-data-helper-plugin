@@ -9,25 +9,69 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiShortNamesCache
+import org.jetbrains.kotlin.idea.base.util.parentsWithSelf
 import org.jetbrains.kotlin.test.helper.TestDataType
 import org.jetbrains.kotlin.test.helper.asPathWithoutAllExtensions
 import org.jetbrains.kotlin.test.helper.getTestDataType
 import org.jetbrains.kotlin.test.helper.nameWithoutAllExtensions
 import java.io.File
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 private val testNameReplacementRegex = "[.-]".toRegex()
 
-fun filterAndCollectTestDeclarations(files: List<VirtualFile>?, project: Project): List<PsiNameIdentifierOwner> {
-    if (files == null) return emptyList()
-    return files.flatMap { it.collectTestMethodsIfTestData(project) }
+const val GENERATION_ON_THE_FLY = false
+
+sealed class TestDescription() {
+    abstract val psi: PsiNameIdentifierOwner
+
+    @OptIn(ExperimentalContracts::class)
+    fun isOnTheFly(): Boolean {
+        contract { returns(true) implies (this@TestDescription is GeneratedOnTheFly) }
+        return this is GeneratedOnTheFly
+    }
+
+    class ExistingTest(
+        override val psi: PsiNameIdentifierOwner
+    ) : TestDescription()
+
+    class GeneratedOnTheFly(
+        override val psi: PsiClass,
+        val file: VirtualFile,
+        val fileOfParentPsi: VirtualFile,
+    ) : TestDescription()
 }
 
-fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstChild: Boolean = true): List<PsiNameIdentifierOwner> {
+fun filterAndCollectTestDescriptions(files: List<VirtualFile>?, project: Project): List<TestDescription> {
+    if (files == null) return emptyList()
+    return files.flatMap { it.collectTestDescriptions(project) }
+}
+
+fun VirtualFile.collectTestDescriptions(
+    project: Project,
+): List<TestDescription> {
+    val existing = collectTestMethodsIfTestData(project)
+
+    if (existing.isEmpty() && GENERATION_ON_THE_FLY) {
+        return parentsWithSelf
+            .drop(1)
+            .takeWhile { it.getTestDataType(project) != null }
+            .firstNotNullOfOrNull { parent ->
+                parent.collectTestMethodsIfTestData(project)
+                    .map { TestDescription.GeneratedOnTheFly(it as PsiClass, this, parent) }
+                    .ifEmpty { null }
+            }
+            .orEmpty()
+    }
+
+    return existing.map { TestDescription.ExistingTest(it) }
+}
+
+private fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstChild: Boolean = true): List<PsiNameIdentifierOwner> {
     val testDataType = getTestDataType(project) ?: return emptyList()
 
     val normalizedFile = if (isFile && testDataType == TestDataType.Directory) parent else this
-    val normalizedName = normalizedFile.nameWithoutAllExtensions.replaceFirstChar { it.uppercaseChar() }
-        .replace(testNameReplacementRegex, "_")
+    val normalizedName = normalizedFile.normalizedName()
     val truePathWithoutAllExtensions = File(normalizedFile.path).absolutePath.asPathWithoutAllExtensions
 
     val cache = PsiShortNamesCache.getInstance(project)
@@ -62,6 +106,11 @@ fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstCh
             buildPath(methodPathPart, testMetaData, testDataPath, project) == truePathWithoutAllExtensions
         }
     }
+}
+
+fun VirtualFile.normalizedName(): String {
+    return nameWithoutAllExtensions.replaceFirstChar { it.uppercaseChar() }
+        .replace(testNameReplacementRegex, "_")
 }
 
 private fun buildPath(

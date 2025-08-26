@@ -10,14 +10,14 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
-import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDeclarations
+import org.jetbrains.kotlin.test.helper.actions.TestDescription
+import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDescriptions
 import org.jetbrains.kotlin.test.helper.buildRunnerLabel
 import org.jetbrains.kotlin.test.helper.gradle.GradleRunConfig
 import org.jetbrains.kotlin.test.helper.gradle.computeGradleCommandLine
@@ -45,8 +45,8 @@ class TestDataRunnerService(
                 reporter.indeterminateStep("Collecting tests")
 
                 smartReadAction(project) {
-                    val testDeclarations = filterAndCollectTestDeclarations(files, project)
-                        .filter { !it.isHeavyTest() }
+                    val testDeclarations = filterAndCollectTestDescriptions(files, project)
+                        .filter { !it.psi.isHeavyTest() }
 
                     val filtered = if (!filterByClass.isNullOrEmpty()) {
                         groupTests(testDeclarations)[filterByClass] ?: testDeclarations
@@ -78,7 +78,7 @@ class TestDataRunnerService(
                     reporter.indeterminateStep("Collecting tests")
 
                     smartReadAction(project) {
-                        val testDeclarations = filterAndCollectTestDeclarations(files, project)
+                        val testDeclarations = filterAndCollectTestDescriptions(files, project)
                         groupTests(testDeclarations)
                     }
                 }
@@ -120,10 +120,10 @@ class TestDataRunnerService(
         }
     }
 
-    private fun groupTests(testDeclarations: List<PsiNameIdentifierOwner>): Map<String, List<PsiNameIdentifierOwner>> {
+    private fun groupTests(testDeclarations: List<TestDescription>): Map<String, List<TestDescription>> {
         val testTags = TestDataPathsConfiguration.getInstance(project).testTags
         return testDeclarations
-            .groupBy { it.parentsOfType<PsiClass>().last() }
+            .groupBy { it.psi.parentsOfType<PsiClass>().last() }
             .mapKeys { it.key.buildRunnerLabel(testTags) }
     }
 }

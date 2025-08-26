@@ -10,7 +10,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
-import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDeclarations
+import org.jetbrains.kotlin.test.helper.actions.filterAndCollectTestDescriptions
 import org.jetbrains.plugins.gradle.settings.GradleLocalSettings
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import org.jetbrains.plugins.gradle.settings.TestRunner
@@ -62,7 +62,7 @@ suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
 
     for (i in 1..10) {
         val tests = smartReadAction(project) {
-            filterAndCollectTestDeclarations(files, project)
+            filterAndCollectTestDescriptions(files, project)
         }
         if (tests.isNotEmpty()) break
         delay(500)

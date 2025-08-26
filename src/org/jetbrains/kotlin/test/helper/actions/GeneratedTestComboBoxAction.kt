@@ -118,7 +118,8 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             val file = baseEditor.file ?: return UpdateResult(emptyList(), emptyList(), null)
             logger.info("task started")
 
-            val testDeclarations = file.collectTestMethodsIfTestData(project)
+            val testDescriptions = file.collectTestDescriptions(project)
+            val testDeclarations = testDescriptions.map { it.psi }
             goToAction.testMethods = testDeclarations
             logger.info("methods collected")
 
@@ -150,7 +151,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
 
             return UpdateResult(
                 labels = items.map { it.first },
-                actions = items.map { it.second },
+                actions = items.map { it.second }.takeUnless { testDescriptions.firstOrNull()?.isOnTheFly() == true },
                 topLevelDirectory = topLevelDirectory
             )
         }
@@ -194,7 +195,9 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         }
 
         override fun update(e: AnActionEvent) {
-            e.presentation.isEnabled = state.currentChosenGroup in state.debugAndRunActionLists.indices
+            val currentIndex = state.currentChosenGroup
+            e.presentation.isEnabled = currentIndex in state.debugAndRunActionLists.indices ||
+                    (e.project?.hasGradleTestRunner(baseEditor.file) == true && currentIndex in state.methodsClassNames.indices)
             super.update(e)
         }
 
