@@ -47,6 +47,7 @@ class TestDataRunnerService(
                 smartReadAction(project) {
                     val testDeclarations = filterAndCollectTestDescriptions(files, project)
                         .filter { !it.psi.isHeavyTest() }
+                        .ifEmpty { return@smartReadAction null }
 
                     val filtered = if (!filterByClass.isNullOrEmpty()) {
                         groupTests(testDeclarations)[filterByClass] ?: testDeclarations
@@ -57,7 +58,7 @@ class TestDataRunnerService(
                     computeGradleCommandLine(filtered)
                 }
             }
-        }
+        } ?: return
 
         val config = GradleRunConfig(
             commandLine,
