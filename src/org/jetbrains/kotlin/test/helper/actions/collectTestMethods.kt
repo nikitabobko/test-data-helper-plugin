@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.test.helper.actions
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.isFile
 import com.intellij.psi.PsiClass
@@ -19,8 +20,6 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 private val testNameReplacementRegex = "[.-]".toRegex()
-
-const val GENERATION_ON_THE_FLY = false
 
 sealed class TestDescription() {
     abstract val psi: PsiNameIdentifierOwner
@@ -52,7 +51,7 @@ fun VirtualFile.collectTestDescriptions(
 ): List<TestDescription> {
     val existing = collectTestMethodsIfTestData(project)
 
-    if (existing.isEmpty() && GENERATION_ON_THE_FLY) {
+    if (existing.isEmpty() && Registry.`is`("kotlin.compiler.devkit.on.the.fly", false)) {
         return parentsWithSelf
             .drop(1)
             .takeWhile { it.getTestDataType(project) != null }

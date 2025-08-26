@@ -36,6 +36,8 @@
           key="compiler.devkit.run_apply"/>
 
         <lang.inspectionSuppressor language="kotlin" implementationClass="org.jetbrains.kotlin.test.helper.inspections.UnusedDeclarationSuppressor"/>
+
+        <registryKey defaultValue="false" description="Support on-the-fly-generated tests in Kotlin Compiler DevKit." key="kotlin.compiler.devkit.on.the.fly" />
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
