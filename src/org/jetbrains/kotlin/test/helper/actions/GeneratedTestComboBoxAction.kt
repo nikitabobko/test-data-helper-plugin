@@ -22,6 +22,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.platform.util.progress.reportSequentialProgress
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.parentsOfType
 import com.intellij.testIntegration.TestRunLineMarkerProvider
@@ -89,10 +90,16 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         setItems(state.methodsClassNames, state.methodsClassNames.elementAtOrNull(state.currentChosenGroup))
     }
 
+    private data class UpdateResult(
+        val labels: List<String>,
+        val actions: List<List<DelegatingRunDebugAction>>?,
+        val topLevelDirectory: String?
+    )
+
     inner class State {
         val project: Project = baseEditor.editor.project!!
         var methodsClassNames: List<String> = emptyList()
-        var debugAndRunActionLists: List<List<AnAction>> = emptyList()
+        var debugAndRunActionLists: List<List<DelegatingRunDebugAction>> = emptyList()
         var currentChosenGroup: Int = 0
         var topLevelDirectory: String? = null
 
@@ -107,15 +114,15 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                 .submit(AppExecutorUtil.getAppExecutorService())
         }
 
-        private fun createActionsForTestRunners(): List<Pair<String, List<AnAction>>> {
-            val file = baseEditor.file ?: return emptyList() // TODO: log
+        private fun createActionsForTestRunners(): UpdateResult {
+            val file = baseEditor.file ?: return UpdateResult(emptyList(), emptyList(), null)
             logger.info("task started")
 
             val testDeclarations = file.collectTestMethodsIfTestData(project)
             goToAction.testMethods = testDeclarations
             logger.info("methods collected")
 
-            topLevelDirectory = testDeclarations.firstNotNullOfOrNull { method ->
+            val topLevelDirectory = testDeclarations.firstNotNullOfOrNull { method ->
                 method.parentsOfType(PsiClass::class.java)
                     .toList()
                     .asReversed()
@@ -123,7 +130,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             }
 
             val ex = TestRunLineMarkerProvider()
-            return testDeclarations.mapNotNull { testMethod ->
+            val items = testDeclarations.mapNotNull { testMethod ->
                 val identifier = testMethod.nameIdentifier ?: return@mapNotNull null
                 val info = ex.getInfo(identifier) ?: return@mapNotNull null
                 val allActions = info.actions
@@ -133,44 +140,19 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                 }
                 val topLevelClass = testMethod.parentsOfType<PsiClass>().last()
 
-                val group: List<AnAction> = allActions.take(2).map {
-                    object : AnAction(), DumbAware {
-                        override fun actionPerformed(e: AnActionEvent) {
-                            val dataContext = SimpleDataContext.builder().apply {
-                                val newLocation = PsiLocation.fromPsiElement(identifier)
-                                setParent(e.dataContext)
-                                add(Location.DATA_KEY, newLocation)
-                            }.build()
-
-                            val newEvent = AnActionEvent(
-                                dataContext,
-                                e.presentation,
-                                e.place,
-                                e.uiKind,
-                                e.inputEvent,
-                                e.modifiers,
-                                e.actionManager,
-                            )
-                            it.actionPerformed(newEvent)
-                        }
-
-                        override fun update(e: AnActionEvent) {
-                            it.update(e)
-                            e.presentation.isEnabledAndVisible = true
-                            e.presentation.description = topLevelClass.name!!
-                        }
-
-                        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-
-                        override fun toString(): String {
-                            return "Run/Debug ${topLevelClass.name}"
-                        }
-                    }
+                val group= allActions.take(2).map {
+                    DelegatingRunDebugAction(it, identifier, topLevelClass)
                 }
 
                 val runnerLabel = topLevelClass.buildRunnerLabel(testTags)
                 runnerLabel to group
             }.sortedBy { it.first }
+
+            return UpdateResult(
+                labels = items.map { it.first },
+                actions = items.map { it.second },
+                topLevelDirectory = topLevelDirectory
+            )
         }
 
         internal fun executeRunConfigAction(e: AnActionEvent, index: Int) {
@@ -185,10 +167,11 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             }
         }
 
-        private fun updateUiAccordingCollectedTests(classAndActions: List<Pair<String, List<AnAction>>>) {
+        private fun updateUiAccordingCollectedTests(result: UpdateResult) {
             logger.info("ui update started")
-            debugAndRunActionLists = classAndActions.map { it.second }
-            methodsClassNames = classAndActions.map { it.first }
+            topLevelDirectory = result.topLevelDirectory
+            debugAndRunActionLists = result.actions.orEmpty()
+            methodsClassNames = result.labels
             val lastUsedRunner = LastUsedTestService.getInstance(project).getLastUsedRunnerForFile(baseEditor.file!!)
             methodsClassNames.indexOf(lastUsedRunner).takeIf { it in methodsClassNames.indices }?.let {
                 currentChosenGroup = it
@@ -342,5 +325,42 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         override fun getChildren(e: AnActionEvent?): Array<AnAction> {
             return actions
         }
+    }
+}
+
+class DelegatingRunDebugAction(
+    private val action: AnAction,
+    private val identifier: PsiElement,
+    private val topLevelClass: PsiClass
+) : AnAction(), DumbAware {
+    override fun actionPerformed(e: AnActionEvent) {
+        val dataContext = SimpleDataContext.builder().apply {
+            val newLocation = PsiLocation.fromPsiElement(identifier)
+            setParent(e.dataContext)
+            add(Location.DATA_KEY, newLocation)
+        }.build()
+
+        val newEvent = AnActionEvent(
+            dataContext,
+            e.presentation,
+            e.place,
+            e.uiKind,
+            e.inputEvent,
+            e.modifiers,
+            e.actionManager,
+        )
+        action.actionPerformed(newEvent)
+    }
+
+    override fun update(e: AnActionEvent) {
+        action.update(e)
+        e.presentation.isEnabledAndVisible = true
+        e.presentation.description = topLevelClass.name!!
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
+    override fun toString(): String {
+        return "Run/Debug ${topLevelClass.name}"
     }
 }
