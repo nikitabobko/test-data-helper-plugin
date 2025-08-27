@@ -38,6 +38,12 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="org.jetbrains.kotlin.test.helper.inspections.UnusedDeclarationSuppressor"/>
 
         <registryKey defaultValue="false" description="Support on-the-fly-generated tests in Kotlin Compiler DevKit." key="kotlin.compiler.devkit.on.the.fly" />
+
+        <intentionAction>
+            <language>kotlin</language>
+            <className>org.jetbrains.kotlin.test.helper.intentions.CreateContextualOverloadIntention</className>
+            <category>Kotlin Compiler DevKit</category>
+        </intentionAction>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

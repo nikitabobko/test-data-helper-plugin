@@ -1,0 +1,12 @@
+fun ConeClassLikeLookupTag.toSymbol(useSiteSession: FirSession): FirClassLikeSymbol<*>? { }
+
+context(sessionHolder: SessionHolder)
+fun ConeClassLikeLookupTag.toSymbol(): FirClassLikeSymbol<*>? {
+    return toSymbol(useSiteSession = sessionHolder.session)
+}
+
+@Deprecated("Use parameterless overload", replaceWith = ReplaceWith("toSymbol()"))
+context(sessionHolder: SessionHolder)
+fun ConeClassLikeLookupTag.toSymbol(@Suppress("unused") s: FirSession): FirClassLikeSymbol<*>? {
+    return toSymbol()
+}
