@@ -250,7 +250,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             object : AnAction("Generate Tests"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
-                    val (commandLine, title) = generateTestsCommandLine(project, listOf(baseEditor.file))
+                    val (commandLine, title) = generateTestsCommandLine()
                     val config =
                         GradleRunConfig(commandLine, title, useProjectBasePath = true, runAsTest = false, debug = false)
                     runGradleCommandLine(e, config)

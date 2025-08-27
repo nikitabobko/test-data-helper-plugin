@@ -40,7 +40,7 @@ fun Project.hasGradleTestRunner(file: VirtualFile): Boolean {
 }
 
 suspend fun generateTestsAndWait(project: Project, files: List<VirtualFile>) {
-    val (commandLine, _) = generateTestsCommandLine(project, files)
+    val (commandLine, _) = generateTestsCommandLine()
 
     suspendCancellableCoroutine {
         runTask(
