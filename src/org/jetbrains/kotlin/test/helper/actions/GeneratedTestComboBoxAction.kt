@@ -158,7 +158,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
 
         internal fun executeRunConfigAction(e: AnActionEvent, index: Int) {
             if (project.hasGradleTestRunner(baseEditor.file)) {
-                val className = methodsClassNames[currentChosenGroup]
+                val className = methodsClassNames.elementAtOrNull(currentChosenGroup) ?: return
                 project.service<TestDataRunnerService>()
                     .collectAndRunAllTests(e, listOf(baseEditor.file), debug = index == 1, filterByClass = className)
             } else {
