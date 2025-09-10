@@ -51,7 +51,7 @@ fun VirtualFile.collectTestDescriptions(
 ): List<TestDescription> {
     val existing = collectTestMethodsIfTestData(project)
 
-    if (existing.isEmpty() && Registry.`is`("kotlin.compiler.devkit.on.the.fly", false)) {
+    if (existing.isEmpty()) {
         return parentsWithSelf
             .drop(1)
             .takeWhile { it.getTestDataType(project) != null }
