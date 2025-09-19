@@ -2,7 +2,6 @@ package org.jetbrains.kotlin.test.helper.actions
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.openapi.util.registry.Registry
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.isFile
 import com.intellij.psi.PsiClass
@@ -21,7 +20,7 @@ import kotlin.contracts.contract
 
 private val testNameReplacementRegex = "[.-]".toRegex()
 
-sealed class TestDescription() {
+sealed class TestDescription {
     abstract val psi: PsiNameIdentifierOwner
 
     @OptIn(ExperimentalContracts::class)
@@ -50,20 +49,19 @@ fun VirtualFile.collectTestDescriptions(
     project: Project,
 ): List<TestDescription> {
     val existing = collectTestMethodsIfTestData(project)
+        .mapTo(mutableListOf<TestDescription>()) { TestDescription.ExistingTest(it) }
 
-    if (existing.isEmpty()) {
-        return parentsWithSelf
-            .drop(1)
-            .takeWhile { it.getTestDataType(project) != null }
-            .firstNotNullOfOrNull { parent ->
-                parent.collectTestMethodsIfTestData(project)
-                    .map { TestDescription.GeneratedOnTheFly(it as PsiClass, this, parent) }
-                    .ifEmpty { null }
-            }
-            .orEmpty()
-    }
+    parentsWithSelf
+        .drop(1)
+        .takeWhile { it.getTestDataType(project) != null }
+        .firstNotNullOfOrNull { parent ->
+            parent.collectTestMethodsIfTestData(project)
+                .map { TestDescription.GeneratedOnTheFly(it as PsiClass, this, parent) }
+                .ifEmpty { null }
+        }
+        ?.let { existing.addAll(it) }
 
-    return existing.map { TestDescription.ExistingTest(it) }
+    return existing.distinctBy { it.psi.containingFile }
 }
 
 private fun VirtualFile.collectTestMethodsIfTestData(project: Project, fallbackToFirstChild: Boolean = true): List<PsiNameIdentifierOwner> {
