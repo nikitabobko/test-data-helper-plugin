@@ -42,6 +42,8 @@
             <className>org.jetbrains.kotlin.test.helper.intentions.CreateContextualOverloadIntention</className>
             <category>Kotlin Compiler DevKit</category>
         </intentionAction>
+
+        <psi.referenceContributor implementation="org.jetbrains.kotlin.test.helper.reference.DirectiveReferenceContributor"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
