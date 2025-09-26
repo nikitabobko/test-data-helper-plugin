@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.stubindex.KotlinPropertyShortNameIndex
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
 private val DIRECTIVE_CLASS_ID =
     ClassId.topLevel(FqName("org.jetbrains.kotlin.test.directives.model.Directive"))
@@ -29,9 +30,7 @@ class TestDirectiveReference(
 
         return declarations
             .filter {
-                analyze(it) {
-                    it.returnType.isSubtypeOf(DIRECTIVE_CLASS_ID)
-                }
+                it.isDirective()
             }
             .map { PsiElementResolveResult(it) }.toTypedArray()
     }
@@ -41,4 +40,8 @@ class TestDirectiveReference(
     }
 
     override fun getVariants(): Array<Any> = emptyArray()
+}
+
+fun KtNamedDeclaration.isDirective(): Boolean = analyze(this) {
+    returnType.isSubtypeOf(DIRECTIVE_CLASS_ID)
 }
