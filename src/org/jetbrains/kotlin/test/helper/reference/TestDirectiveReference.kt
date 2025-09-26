@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.idea.stubindex.KotlinPropertyShortNameIndex
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 
-private val DIRECTIVE_CLASS_ID =
+internal val DIRECTIVE_CLASS_ID =
     ClassId.topLevel(FqName("org.jetbrains.kotlin.test.directives.model.Directive"))
 
 class TestDirectiveReference(

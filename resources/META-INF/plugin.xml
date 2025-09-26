@@ -44,6 +44,7 @@
         </intentionAction>
 
         <psi.referenceContributor implementation="org.jetbrains.kotlin.test.helper.reference.DirectiveReferenceContributor"/>
+        <completion.contributor language="any" implementationClass="org.jetbrains.kotlin.test.helper.reference.DirectiveCompletionContributor"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
