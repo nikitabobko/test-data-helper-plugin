@@ -43,7 +43,8 @@
             <category>Kotlin Compiler DevKit</category>
         </intentionAction>
 
-        <psi.referenceContributor implementation="org.jetbrains.kotlin.test.helper.reference.DirectiveReferenceContributor"/>
+        <psi.referenceContributor implementation="org.jetbrains.kotlin.test.helper.reference.DirectiveReferenceContributor"
+                                  language="kotlin"/>
 
         <completion.contributor language="kotlin" implementationClass="org.jetbrains.kotlin.test.helper.completion.CommentDirectiveCompletionContributor"/>
     </extensions>
