@@ -7,8 +7,8 @@ import com.intellij.util.ProcessingContext
 import org.jetbrains.kotlin.test.helper.getTestDataType
 
 class DirectiveReferenceContributor : PsiReferenceContributor() {
-    val regex = Regex("// ([A-Z_]+)(:.*)?")
-    val regexLanguageFeature = Regex("[+-]([A-Za-z0-9_]+)")
+    private val regex = Regex("// ([A-Z0-9_]+)(:.*)?")
+    private val regexValue = Regex("[+-]?([A-Za-z0-9_]+)")
 
     override fun registerReferenceProviders(registrar: PsiReferenceRegistrar) {
         registrar.registerReferenceProvider(
@@ -31,21 +31,20 @@ class DirectiveReferenceContributor : PsiReferenceContributor() {
                         val range = TextRange(matchRange.first, matchRange.last + 1)
                         refs.add(TestDirectiveReference(element, range, name))
 
-                        if (name == "LANGUAGE") {
-                            val (features, featuresRange) = match.groups[2] ?: return@let
-                            regexLanguageFeature.findAll(features).forEach {
-                                val (feature, featureRange) = it.groups[1] ?: return@forEach
-                                refs.add(
-                                    LanguageFeatureReference(
-                                        element,
-                                        TextRange(
-                                            featuresRange.first + featureRange.first,
-                                            featuresRange.first + featureRange.last + 1,
-                                        ),
-                                        feature
-                                    )
-                                )
+                        val (features, featuresRange) = match.groups[2] ?: return@let
+                        regexValue.findAll(features).forEach {
+                            val (value, valueRange) = it.groups[1] ?: return@forEach
+                            val valueTextRange = TextRange(
+                                featuresRange.first + valueRange.first,
+                                featuresRange.first + valueRange.last + 1,
+                            )
+                            val enumType: EnumClassProvider = if (name == "LANGUAGE") {
+                                ::getLanguageFeatureClasses
+                            } else {
+                                { getEnumClassesByDirective(name, it) }
                             }
+                            val reference = EnumValueReference(element, valueTextRange, value, enumType)
+                            refs.add(reference)
                         }
                     }
 
