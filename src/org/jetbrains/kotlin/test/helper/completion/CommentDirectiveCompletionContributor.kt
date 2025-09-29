@@ -1,10 +1,15 @@
 package org.jetbrains.kotlin.test.helper.completion
 
-import com.intellij.codeInsight.completion.*
+import com.intellij.codeInsight.completion.CompletionContributor
+import com.intellij.codeInsight.completion.CompletionParameters
+import com.intellij.codeInsight.completion.CompletionProvider
+import com.intellij.codeInsight.completion.CompletionResultSet
+import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.project.Project
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.search.GlobalSearchScope
@@ -13,7 +18,8 @@ import com.intellij.util.ProcessingContext
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.test.helper.reference.LANGUAGE_FEATURE_FQ_NAME
+import org.jetbrains.kotlin.test.helper.reference.getEnumClassesByDirective
+import org.jetbrains.kotlin.test.helper.reference.getLanguageFeatureClasses
 import org.jetbrains.kotlin.test.helper.reference.isDirective
 
 class CommentDirectiveCompletionContributor : CompletionContributor() {
@@ -26,7 +32,11 @@ class CommentDirectiveCompletionContributor : CompletionContributor() {
     }
 }
 
+private const val DIRECTIVES_CONTAINER_FQ_NAME = "org.jetbrains.kotlin.test.directives.model.DirectivesContainer"
+
 class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParameters>() {
+    private val regex = Regex("// ([A-Z0-9_]+):")
+
     override fun addCompletions(
         parameters: CompletionParameters,
         context: ProcessingContext,
@@ -34,24 +44,22 @@ class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParamete
     ) {
         val project = parameters.position.project
 
-        if ((parameters.position as? PsiComment)?.text?.startsWith("// LANGUAGE") == true) {
-            completeLanguageFeatures(project, resultSet)
+        val text = (parameters.position as? PsiComment)?.text
+        if (text?.startsWith("// LANGUAGE") == true) {
+            completeEnumValues(getLanguageFeatureClasses(project), resultSet)
         } else {
+            if (text != null) {
+                val result = regex.matchAt(text, 0)
+                result?.groupValues?.elementAtOrNull(1)?.let {
+                    completeEnumValues(getEnumClassesByDirective(it, project), resultSet)
+                    return
+                }
+            }
             completeDirectives(project, resultSet)
         }
     }
 
-    private fun completeLanguageFeatures(
-        project: Project,
-        resultSet: CompletionResultSet
-    ) {
-        val psiFacade = JavaPsiFacade.getInstance(project)
-        val classes = psiFacade
-            .findClasses(
-                LANGUAGE_FEATURE_FQ_NAME,
-                GlobalSearchScope.allScope(project)
-            )
-
+    private fun completeEnumValues(classes: Array<out PsiClass>, resultSet: CompletionResultSet) {
         classes.flatMap { it.fields.filterIsInstance<PsiEnumConstant>() }
             .mapTo(mutableSetOf()) { it.name }
             .forEach { resultSet.addElement(LookupElementBuilder.create(it)) }
@@ -64,7 +72,7 @@ class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParamete
         val scope = GlobalSearchScope.allScope(project)
 
         val directiveContainer = JavaPsiFacade.getInstance(project)
-            .findClass("org.jetbrains.kotlin.test.directives.model.DirectivesContainer", scope)
+            .findClass(DIRECTIVES_CONTAINER_FQ_NAME, scope)
             ?: return
 
         val inheritors = ClassInheritorsSearch.search(directiveContainer, scope, true).findAll()
