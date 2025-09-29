@@ -61,7 +61,7 @@ suspend fun runTestAndApplyDiffLoop(
         runTests()
 
         val testProxy = awaitTestRun(project)
-        if (testProxy.isPassed) break
+        if (testProxy.isPassed || testProxy.isIgnored) break
 
         val result = applyDiffs(arrayOf(testProxy), project)
 
