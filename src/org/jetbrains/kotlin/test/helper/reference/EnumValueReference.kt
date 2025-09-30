@@ -13,6 +13,7 @@ import com.intellij.psi.ResolveResult
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.stubindex.KotlinPropertyShortNameIndex
 import org.jetbrains.kotlin.name.ClassId
@@ -24,7 +25,7 @@ const val LANGUAGE_FEATURE_FQ_NAME = "org.jetbrains.kotlin.config.LanguageFeatur
 private val VALUE_DIRECTIVE_CLASS_ID =
     ClassId.topLevel(FqName("org.jetbrains.kotlin.test.directives.model.ValueDirective"))
 
-typealias EnumClassProvider = (Project) -> Array<out PsiClass>
+typealias EnumClassProvider = (Project) -> List<PsiClass>
 
 class EnumValueReference(
     element: PsiElement,
@@ -52,26 +53,27 @@ class EnumValueReference(
     override fun getVariants(): Array<Any> = emptyArray()
 }
 
-fun getLanguageFeatureClasses(project: Project): Array<out PsiClass> {
+fun getLanguageFeatureClasses(project: Project): List<PsiClass> {
     val psiFacade = JavaPsiFacade.getInstance(project)
-    return psiFacade
-        .findClasses(
-            LANGUAGE_FEATURE_FQ_NAME,
-            GlobalSearchScope.allScope(project)
-        )
+
+    return resolvePreferringProjectScope(project) {
+        psiFacade.findClasses(LANGUAGE_FEATURE_FQ_NAME, it).toList()
+    }
 }
 
-fun getEnumClassesByDirective(key: String, project: Project): Array<out PsiClass> {
-    val declarations =
-        KotlinPropertyShortNameIndex.Helper[key, project, GlobalSearchScope.allScope(project)]
+fun getEnumClassesByDirective(key: String, project: Project): List<KtLightClass> {
+    return resolvePreferringProjectScope(project) {
+        val declarations =
+            KotlinPropertyShortNameIndex.Helper[key, project, GlobalSearchScope.allScope(project)]
 
-    return declarations.mapNotNull {
-        analyze(it) {
-            if (it.returnType.isClassType(VALUE_DIRECTIVE_CLASS_ID)) {
-                ((it.returnType as KaClassType).typeArguments.firstOrNull()?.type?.expandedSymbol?.psi as? KtClass)?.toLightClass()
-            } else {
-                null
+        declarations.mapNotNull {
+            analyze(it) {
+                if (it.returnType.isClassType(VALUE_DIRECTIVE_CLASS_ID)) {
+                    ((it.returnType as KaClassType).typeArguments.firstOrNull()?.type?.expandedSymbol?.psi as? KtClass)?.toLightClass()
+                } else {
+                    null
+                }
             }
         }
-    }.toTypedArray()
+    }
 }

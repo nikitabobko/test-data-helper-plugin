@@ -59,7 +59,7 @@ class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParamete
         }
     }
 
-    private fun completeEnumValues(classes: Array<out PsiClass>, resultSet: CompletionResultSet) {
+    private fun completeEnumValues(classes: List<PsiClass>, resultSet: CompletionResultSet) {
         classes.flatMap { it.fields.filterIsInstance<PsiEnumConstant>() }
             .mapTo(mutableSetOf()) { it.name }
             .forEach { resultSet.addElement(LookupElementBuilder.create(it)) }

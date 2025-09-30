@@ -1,5 +1,6 @@
 package org.jetbrains.kotlin.test.helper.reference
 
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
@@ -24,15 +25,11 @@ class TestDirectiveReference(
 
     override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {
         val project = myElement.project
-
-        val declarations =
-            KotlinPropertyShortNameIndex.Helper[key, project, GlobalSearchScope.allScope(project)]
-
-        return declarations
-            .filter {
-                it.isDirective()
-            }
-            .map { PsiElementResolveResult(it) }.toTypedArray()
+        return resolvePreferringProjectScope(project) {
+            val declarations = KotlinPropertyShortNameIndex.Helper[key, project, it]
+            declarations.filter { it.isDirective() }
+        }.map { PsiElementResolveResult(it) }
+            .toTypedArray()
     }
 
     override fun resolve(): PsiElement? {
@@ -44,4 +41,9 @@ class TestDirectiveReference(
 
 fun KtNamedDeclaration.isDirective(): Boolean = analyze(this) {
     returnType.isSubtypeOf(DIRECTIVE_CLASS_ID)
+}
+
+fun <T : PsiElement> resolvePreferringProjectScope(project: Project, resolve: (GlobalSearchScope) -> List<T>): List<T> {
+    return resolve(GlobalSearchScope.projectScope(project))
+        .ifEmpty { resolve(GlobalSearchScope.allScope(project)) }
 }
