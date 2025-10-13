@@ -56,7 +56,10 @@ fun VirtualFile.collectTestDescriptions(
         .takeWhile { it.getTestDataType(project) != null }
         .firstNotNullOfOrNull { parent ->
             parent.collectTestMethodsIfTestData(project)
-                .map { TestDescription.GeneratedOnTheFly(it as PsiClass, this, parent) }
+                .mapNotNull {
+                    val klass = it as? PsiClass ?: return@mapNotNull null
+                    TestDescription.GeneratedOnTheFly(klass, this, parent)
+                }
                 .ifEmpty { null }
         }
         ?.let { existing.addAll(it) }
