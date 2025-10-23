@@ -7,6 +7,8 @@ import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -43,6 +45,10 @@ class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParamete
         resultSet: CompletionResultSet
     ) {
         val project = parameters.position.project
+
+        if (parameters.originalFile.virtualFile.isUnderSourceRoot(project)) {
+            return
+        }
 
         val text = (parameters.position as? PsiComment)?.text
         if (text?.startsWith("// LANGUAGE") == true) {
@@ -89,5 +95,10 @@ class CommentDirectiveCompletionProvider : CompletionProvider<CompletionParamete
                 resultSet.addElement(LookupElementBuilder.create(field.name ?: return@forEach))
             }
         }
+    }
+
+    private fun VirtualFile.isUnderSourceRoot(project: Project): Boolean {
+        val fileIndex = ProjectRootManager.getInstance(project).fileIndex
+        return fileIndex.isInSourceContent(this)
     }
 }
