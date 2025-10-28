@@ -164,7 +164,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             } else {
                 val action =
                     debugAndRunActionLists.elementAtOrNull(currentChosenGroup)?.elementAtOrNull(index) ?: return
-                ActionUtil.performActionDumbAwareWithCallbacks(action, e)
+                ActionUtil.performAction(action, e)
             }
         }
 
@@ -249,7 +249,6 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             },
             object : AnAction("Generate Tests"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
-                    val project = e.project ?: return
                     val (commandLine, title) = generateTestsCommandLine()
                     val config =
                         GradleRunConfig(commandLine, title, useProjectBasePath = true, runAsTest = false, debug = false)
@@ -320,7 +319,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             },
             object : GradleOnlyAction("Generate, Run, Apply Diffs && Commit") {
                 override fun actionPerformed(e: AnActionEvent) {
-                    ActionUtil.performActionDumbAwareWithCallbacks(CreateReproducerCommitAction(), e)
+                    ActionUtil.performAction(CreateReproducerCommitAction(), e)
                 }
             }
         )
