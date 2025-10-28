@@ -280,19 +280,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
             },
             object : GradleOnlyAction("Run All && Apply Diffs"), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
-                    val project = e.project ?: return
-
-                    val service = project.service<TestDataRunnerService>()
-                    service.scope.launch {
-                        withBackgroundProgress(project, "Running All Tests & Applying Diffs") {
-                            reportSequentialProgress { reporter ->
-                                reporter.indeterminateStep("Running All Tests")
-                                runTestAndApplyDiffLoop(project) {
-                                    service.doCollectAndRunAllTests(e, listOf(baseEditor.file), debug = false)
-                                }
-                            }
-                        }
-                    }
+                    ActionUtil.performAction(RunAllAndApplyDiffsAction(), e)
                 }
             },
             object : GradleOnlyAction("Generate Tests, Run All && Apply Diffs"), DumbAware {

@@ -77,6 +77,13 @@
                     text="Debug Specific Tests" description="Debug specific tests related to selected files"
                     icon="AllIcons.Actions.StartDebugger">
             </action>
+            <action
+                    id="RunSelectedAndApplyDiffs"
+                    class="org.jetbrains.kotlin.test.helper.actions.RunSelectedAndApplyDiffsAction"
+                    text="Run Specific Tests and Apply Diffs"
+                    description="Runs specific tests and applies all diffs."
+                    icon="AllIcons.Diff.ApplyNotConflicts">
+            </action>
         </group>
 
         <group id="TestDataRunAllTestsGroup"
@@ -102,12 +109,18 @@
                     icon="AllIcons.Actions.StartDebugger">
             </action>
             <action
+                    id="RunAllAndApplyDiffs"
+                    class="org.jetbrains.kotlin.test.helper.actions.RunAllAndApplyDiffsAction"
+                    text="Run All Tests and Apply Diffs"
+                    description="Runs all tests and applies all diffs."
+                    icon="AllIcons.Diff.ApplyNotConflicts">
+            </action>
+            <action
                     id="CreateReproducerCommit"
                     class="org.jetbrains.kotlin.test.helper.actions.CreateReproducerCommitAction"
                     text="Create Reproducer Commit"
                     description="Generates tests, runs all tests, applies all diffs and creates a commit with the specified ticket number."
-                    icon="AllIcons.Actions.Commit"
-            >
+                    icon="AllIcons.Actions.Commit">
             </action>
         </group>
 
