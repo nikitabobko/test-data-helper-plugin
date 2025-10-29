@@ -1,4 +1,4 @@
-﻿<idea-plugin>
+<idea-plugin>
     <actions>
         <action id="GitRebaseOnGreenMasterCommitAction"
                 class="org.jetbrains.kotlin.test.helper.actions.git.RebaseOnGreenMasterCommitAction"
