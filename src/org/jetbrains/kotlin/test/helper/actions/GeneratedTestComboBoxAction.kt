@@ -263,7 +263,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                         withBackgroundProgress(project, "Running Selected & Applying Diffs") {
                             reportSequentialProgress { reporter ->
                                 reporter.indeterminateStep("Running Selected")
-                                val className = state.methodsClassNames[state.currentChosenGroup]
+                                val className = state.methodsClassNames.elementAtOrNull(state.currentChosenGroup) ?: return@reportSequentialProgress
 
                                 runTestAndApplyDiffLoop(project) {
                                     service.doCollectAndRunAllTests(
