@@ -141,7 +141,8 @@
         <action id="ApplyFileDiff"
                 class="org.jetbrains.kotlin.test.helper.actions.ApplyFileDiffAction"
                 text="Apply Diffs"
-                description="Applies the diff between the expected value and the actual file">
+                description="Applies the diff between the expected value and the actual file"
+                icon="AllIcons.Diff.ApplyNotConflicts">
             <add-to-group group-id="TestTreePopupMenu" anchor="last" />
         </action>
     </actions>

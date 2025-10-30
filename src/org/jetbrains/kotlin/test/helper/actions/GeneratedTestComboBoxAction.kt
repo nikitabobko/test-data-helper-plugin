@@ -242,12 +242,12 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
         }
 
         private val actions = arrayOf(
-            object : AnAction("Reload Tests"), DumbAware {
+            object : AnAction("Reload Tests", null, AllIcons.Actions.Refresh), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     state.updateTestsList()
                 }
             },
-            object : AnAction("Generate Tests"), DumbAware {
+            object : AnAction("Generate Tests", null, AllIcons.Actions.GeneratedFolder), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val (commandLine, title) = generateTestsCommandLine()
                     val config =
@@ -255,7 +255,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     runGradleCommandLine(e, config)
                 }
             },
-            object : GradleOnlyAction("Run Selected && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Run Selected && Apply Diffs", null, AllIcons.Diff.ApplyNotConflicts), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val service = project.service<TestDataRunnerService>()
@@ -278,12 +278,12 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     }
                 }
             },
-            object : GradleOnlyAction("Run All && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Run All && Apply Diffs", null, AllIcons.Diff.ApplyNotConflicts), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     ActionUtil.performAction(RunAllAndApplyDiffsAction(), e)
                 }
             },
-            object : GradleOnlyAction("Generate Tests, Run All && Apply Diffs"), DumbAware {
+            object : GradleOnlyAction("Generate Tests, Run All && Apply Diffs", null, AllIcons.Diff.ApplyNotConflicts), DumbAware {
                 override fun actionPerformed(e: AnActionEvent) {
                     val project = e.project ?: return
                     val service = project.service<TestDataRunnerService>()
@@ -305,7 +305,7 @@ class GeneratedTestComboBoxAction(val baseEditor: TextEditor) : AbstractComboBox
                     }
                 }
             },
-            object : GradleOnlyAction("Generate, Run, Apply Diffs && Commit") {
+            object : GradleOnlyAction("Generate, Run, Apply Diffs && Commit", null, AllIcons.Actions.Commit) {
                 override fun actionPerformed(e: AnActionEvent) {
                     ActionUtil.performAction(CreateReproducerCommitAction(), e)
                 }
