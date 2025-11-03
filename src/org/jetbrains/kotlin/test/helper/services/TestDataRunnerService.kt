@@ -74,9 +74,11 @@ class TestDataRunnerService(
             }
         } ?: return
 
+        val fileNamesString = files.toFileNamesString(project)
+
         val config = GradleRunConfig(
             commandLine,
-            title = e.toFileNamesString()?.let { if (filterByClass != null) "$filterByClass: $it" else it },
+            title = if (filterByClass != null) "$filterByClass: $fileNamesString" else fileNamesString ,
             debug = debug,
             useProjectBasePath = false,
             runAsTest = true

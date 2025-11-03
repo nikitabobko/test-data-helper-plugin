@@ -74,9 +74,14 @@ val VirtualFile.allExtensions get() = name.substring(nameWithoutAllExtensions.le
 
 fun AnActionEvent.toFileNamesString(): String? {
     val project = project ?: return null
-    return getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
-        ?.filter { it.getTestDataType(project) != null }
-        ?.map { it.nameWithoutAllExtensions }
-        ?.distinct()
-        ?.joinToString(separator = ", ")
+    val files = getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
+    return files?.toList()?.toFileNamesString(project)
+}
+
+fun List<VirtualFile>.toFileNamesString(project: Project): String {
+    return this
+        .filter { it.getTestDataType(project) != null }
+        .map { it.nameWithoutAllExtensions }
+        .distinct()
+        .joinToString(separator = ", ")
 }
