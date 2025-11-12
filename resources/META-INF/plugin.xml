@@ -145,5 +145,12 @@
                 icon="AllIcons.Diff.ApplyNotConflicts">
             <add-to-group group-id="TestTreePopupMenu" anchor="last" />
         </action>
+
+        <action id="org.jetbrains.kotlin.test.helper.actions.RemoveFirIdenticalAction"
+                class="org.jetbrains.kotlin.test.helper.actions.RemoveFirIdenticalAction"
+                text="Remove FIR__IDENTICAL"
+                description="Removes the FIR_IDENTICAL directive">
+            <add-to-group group-id="TestTreePopupMenu" anchor="last" />
+        </action>
     </actions>
 </idea-plugin>

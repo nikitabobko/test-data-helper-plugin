@@ -41,8 +41,6 @@ fun glob(searchPattern: String, run: (Path) -> Unit) {
     )
 }
 
-
-
 fun PsiClass.buildRunnerLabel(allTags: Map<String, Array<String>>): String {
     val runnerName = this.name!!
     val tags = allTags.firstNotNullOfOrNull { (pattern, tags) ->

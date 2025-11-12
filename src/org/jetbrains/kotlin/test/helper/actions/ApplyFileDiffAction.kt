@@ -8,7 +8,6 @@ import com.intellij.execution.testframework.AbstractTestProxy
 import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsAdapter
 import com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener
 import com.intellij.execution.testframework.sm.runner.SMTestProxy
-import com.intellij.execution.testframework.stacktrace.DiffHyperlink
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -26,6 +25,7 @@ import com.intellij.psi.PsiDocumentManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.jetbrains.kotlin.test.helper.collectDiffsRecursively
 import java.nio.file.Paths
 import kotlin.coroutines.resume
 
@@ -116,7 +116,7 @@ enum class ApplyDiffResult {
 
 suspend fun applyDiffs(tests: Array<out AbstractTestProxy>, project: Project): ApplyDiffResult {
     val diffsByFile = tests
-        .flatMap { it.collectChildrenRecursively(mutableListOf()) }
+        .flatMap { it.collectDiffsRecursively(mutableListOf()) }
         .groupBy { it.filePath }
         .mapValues { it.value.distinctBy { diff -> diff.right } }
 
@@ -153,17 +153,6 @@ suspend fun applyDiffs(tests: Array<out AbstractTestProxy>, project: Project): A
     }
 
     return result
-}
-
-private fun AbstractTestProxy.collectChildrenRecursively(list: MutableList<DiffHyperlink>): List<DiffHyperlink> {
-    if (isLeaf) {
-        list.addAll(diffViewerProviders)
-    } else {
-        for (child in children) {
-            child.collectChildrenRecursively(list)
-        }
-    }
-    return list
 }
 
 private fun autoMerge(left: String, base: String, right: String, onConflict: () -> Unit): String {
