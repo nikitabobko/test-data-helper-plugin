@@ -85,3 +85,14 @@ fun List<VirtualFile>.toFileNamesString(project: Project): String {
         .distinct()
         .joinToString(separator = ", ")
 }
+
+
+fun VirtualFile.getRelatedTestFiles(
+    project: Project
+): List<VirtualFile> {
+    val configuration = TestDataPathsConfiguration.getInstance(project)
+    val curFileName = simpleNameUntilFirstDot
+
+    return this.parent.children.filter { it.name.startsWith("$curFileName.") } +
+            configuration.findAdditionalRelatedFiles(this, curFileName)
+}

@@ -4,9 +4,12 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.VirtualFile
 import org.jetbrains.kotlin.test.helper.TestDataPathsConfiguration
 import org.jetbrains.kotlin.test.helper.allExtensions
+import org.jetbrains.kotlin.test.helper.getRelatedTestFiles
 import org.jetbrains.kotlin.test.helper.simpleNameUntilFirstDot
 
 class PreviewEditorState(
@@ -62,12 +65,7 @@ class PreviewEditorState(
         val file = baseEditor.file ?: return emptyList()
         if (!file.isValid) return emptyList()
         val project = baseEditor.editor.project ?: return emptyList()
-        val configuration = TestDataPathsConfiguration.getInstance(project)
-
-        val curFileName = file.simpleNameUntilFirstDot
-
-        val relatedFiles = file.parent.children.filter { it.name.startsWith("$curFileName.") } +
-                configuration.findAdditionalRelatedFiles(file, curFileName)
+        val relatedFiles = file.getRelatedTestFiles(project)
 
         return relatedFiles.map {
             TextEditorProvider.getInstance().createEditor(project, it).also { Disposer.register(parent, it) }
